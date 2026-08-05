@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { Badge, Progress } from '../../../components/ui';
+import { Badge, Progress } from '../../components/ui';
 
 export default function CheckinPage() {
   const router = useRouter();
