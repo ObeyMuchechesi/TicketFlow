@@ -274,12 +274,6 @@ export default function Home({ events: serverEvents }) {
             >
               Browse Events
             </button>
-            <button
-              className="tf-btn tf-btn-secondary tf-btn-lg"
-              onClick={() => router.push('/admin/events/new')}
-            >
-              Create Event
-            </button>
           </div>
 
           <div className="tf-hero-stats animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
@@ -624,10 +618,14 @@ function PremiumEventCard({ event, formatDate, minPrice, favourited, onToggleFav
   const accent = event.theme_color || '#a855f7';
   const category = detectCategory(event);
   const [daysLeft, setDaysLeft] = useState(null);
+  const [hoursLeft, setHoursLeft] = useState(null);
 
   useEffect(() => {
     const diff = new Date(event.date).getTime() - new Date().getTime();
-    if (diff > 0) setDaysLeft(Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    if (diff > 0) {
+      setDaysLeft(Math.ceil(diff / (1000 * 60 * 60 * 24)));
+      setHoursLeft(Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+    }
   }, [event.date]);
 
   const ps = percentSold(event);
@@ -677,7 +675,7 @@ function PremiumEventCard({ event, formatDate, minPrice, favourited, onToggleFav
               <span className="tf-countdown-label">Days</span>
             </div>
             <div className="tf-countdown-item">
-              <span className="tf-countdown-value">{Math.floor((new Date(event.date).getTime() - Date.now()) % (1000 * 60 * 60 * 24) / (1000 * 60 * 60))}</span>
+              <span className="tf-countdown-value">{hoursLeft ?? '–'}</span>
               <span className="tf-countdown-label">Hrs</span>
             </div>
           </div>

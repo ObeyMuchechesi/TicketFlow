@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
 import { Card, Badge, Button, Input, StepIndicator, Progress } from '../../../components/ui';
+import { buildEcocashShortcode } from '../../../lib/ecocash';
 
 const WIZARD_STEPS = [
   'Basic Info',
@@ -48,6 +49,9 @@ export default function NewEvent() {
     end_time: '',
     payment_methods: 'stripe',
     refund_policy: '',
+    ecocash_type: 'none',
+    ecocash_code: '',
+    ecocash_phone: '',
     status: 'draft',
   });
   const [ticketTypes, setTicketTypes] = useState([
@@ -151,6 +155,9 @@ export default function NewEvent() {
         theme_color: form.theme_color,
         capacity: form.capacity,
         status: form.status,
+        ecocash_type: form.ecocash_type,
+        ecocash_code: form.ecocash_code,
+        ecocash_phone: form.ecocash_phone,
       };
       const res = await fetch('/api/events', {
         method: 'POST',
@@ -819,6 +826,16 @@ function StepSchedule({ form, setF }) {
 }
 
 function StepPayments({ form, setF }) {
+  // Live preview of the USSD shortcode customers will dial
+  const ecocashPreview = form.ecocash_type !== 'none' && form.ecocash_code
+    ? buildEcocashShortcode({
+        type: form.ecocash_type,
+        code: form.ecocash_code,
+        amount: '15.00',
+        reference: 'TF8F3K2Q',
+      })
+    : null;
+
   return (
     <Wrapper>
       <Card style={{ padding: '20px' }}>
@@ -891,6 +908,105 @@ function StepPayments({ form, setF }) {
           ))}
         </div>
       </div>
+
+      {/* EcoCash Configuration */}
+      <Card style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(16,185,129,0.05), rgba(59,130,246,0.05))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '22px',
+            flexShrink: 0,
+          }}>📱</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '15px', fontWeight: 700 }}>EcoCash Configuration</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              Optional · For mobile money payments in Zimbabwe
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+              EcoCash Payment Type
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              {[
+                { id: 'none', label: 'Not Using', icon: '❌' },
+                { id: 'biller', label: 'Biller Code', icon: '🏦' },
+                { id: 'agent', label: 'Agent Code', icon: '👤' },
+              ].map(opt => (
+                <label
+                  key={opt.id}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    background: form.ecocash_type === opt.id ? 'rgba(16,185,129,0.1)' : 'var(--panel-bg)',
+                    border: `2px solid ${form.ecocash_type === opt.id ? '#10b981' : 'var(--panel-border)'}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    textAlign: 'center',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="ecocash_type"
+                    checked={form.ecocash_type === opt.id}
+                    onChange={() => setF('ecocash_type', opt.id)}
+                    style={{ display: 'none' }}
+                  />
+                  <div style={{ fontSize: '20px', marginBottom: '4px' }}>{opt.icon}</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600 }}>{opt.label}</div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {form.ecocash_type !== 'none' && (
+            <>
+              <Input
+                label={form.ecocash_type === 'biller' ? 'Biller Code' : 'Agent Code'}
+                placeholder={form.ecocash_type === 'biller' ? 'e.g. 12345' : 'e.g. 67890'}
+                value={form.ecocash_code}
+                onChange={e => setF('ecocash_code', e.target.value)}
+                helper={form.ecocash_type === 'biller' ? 'Your EcoCash biller code for receiving payments' : 'Your EcoCash agent code for receiving payments'}
+              />
+              <Input
+                label="Recipient Phone Number"
+                type="tel"
+                placeholder="e.g. 0771234567 or 0781234567"
+                value={form.ecocash_phone}
+                onChange={e => setF('ecocash_phone', e.target.value)}
+                helper="Mobile number where EcoCash payments will be received"
+              />
+
+              {ecocashPreview && (
+                <div style={{
+                  padding: '14px 16px', borderRadius: '14px',
+                  background: 'rgba(16,185,129,0.07)',
+                  border: '1px dashed rgba(16,185,129,0.35)',
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                    ⚡ Auto-generated customer shortcode (preview)
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '14px', fontWeight: 700, color: '#047857', wordBreak: 'break-all' }}>
+                    {ecocashPreview}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '6px', lineHeight: 1.5 }}>
+                    Customers tap-to-dial this when buying. The amount and a unique reference are added automatically at checkout.
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Card>
 
       <div className="field-group">
         <label>Refund Policy</label>

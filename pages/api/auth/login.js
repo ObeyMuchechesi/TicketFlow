@@ -21,8 +21,23 @@ export default async function handler(req, res) {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = createSessionToken(user.id, user.role);
-    res.setHeader('Set-Cookie', `tf_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`);
-    res.json({ success: true, user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role } });
+    const isProd = process.env.NODE_ENV === 'production';
+    res.setHeader(
+      'Set-Cookie',
+      `tf_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${isProd ? '; Secure' : ''}; Max-Age=${60 * 60 * 24 * 7}`
+    );
+
+    // Role-based redirect: each role lands in its own dashboard
+    let redirect = '/admin';
+    if (user.role === 'gate_staff') {
+      redirect = '/staff';
+    }
+
+    res.json({
+      success: true,
+      user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
+      redirect,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });

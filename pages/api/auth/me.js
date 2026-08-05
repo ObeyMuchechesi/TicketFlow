@@ -4,6 +4,7 @@ import { getServiceClient } from '../../../lib/supabase';
 export default async function handler(req, res) {
   const session = getUserFromRequest(req);
   if (!session) return res.status(401).json({ user: null });
+
   try {
     const supabase = getServiceClient();
     const { data: user } = await supabase
@@ -11,8 +12,13 @@ export default async function handler(req, res) {
       .select('id, email, full_name, role, phone')
       .eq('id', session.userId)
       .single();
-    res.json({ user: user || null });
+
+    if (!user || user.is_active === false) {
+      return res.status(401).json({ user: null });
+    }
+    res.json({ user });
   } catch {
-    res.status(500).json({ user: null });
+    // Transient server error — the client should NOT log the user out on this.
+    res.status(503).json({ user: null, error: 'Failed to load session' });
   }
 }

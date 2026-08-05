@@ -15,7 +15,7 @@ const NAV_MANAGE = [
 ];
 
 const NAV_TOOLS = [
-  { href: '/checkin', label: 'Gate Scanner', icon: '📷' },
+  { href: '/staff', label: 'Gate Staff Panel', icon: '📷' },
   { href: '/', label: 'View Site', icon: '🌐', external: true },
 ];
 
@@ -27,6 +27,7 @@ const CMD_ITEMS = [
   { href: '/admin/reports', label: 'Export CSV', icon: '📥' },
   { href: '/admin/staff', label: 'Add Staff Member', icon: '👤' },
   { href: '/admin/promo-codes', label: 'Create Promo Code', icon: '🎟️' },
+  { href: '/staff', label: 'Open Gate Scanner', icon: '📷' },
 ];
 
 export default function AdminLayout({ children, title = 'Admin' }) {
@@ -39,16 +40,24 @@ export default function AdminLayout({ children, title = 'Admin' }) {
   const cmdInputRef = useRef(null);
 
   useEffect(() => {
+    // Only a genuine missing/invalid session (401) redirects to login;
+    // transient server errors don't log admins out.
     fetch('/api/auth/me')
       .then(r => r.json())
       .then(d => {
-        if (!d.user || !['super_admin', 'organiser'].includes(d.user.role)) {
+        if (d.user) {
+          if (d.user.role === 'gate_staff') {
+            router.push('/staff'); // gate staff should use /staff, not admin pages
+          } else if (!['super_admin', 'organiser'].includes(d.user.role)) {
+            router.push('/admin/login');
+          } else {
+            setUser(d.user);
+          }
+        } else if (!d.error) {
           router.push('/admin/login');
-        } else {
-          setUser(d.user);
         }
       })
-      .catch(() => router.push('/admin/login'));
+      .catch(() => {});
   }, []);
 
   const handleKey = useCallback((e) => {
@@ -262,7 +271,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                 onClick={() => {
                   const html = document.documentElement;
                   const current = html.getAttribute('data-theme');
-                  const themes = ['dark-concert', 'midnight-blue', 'royal-purple', 'emerald', 'elegant-white'];
+                  const themes = ['vibrant', 'dark-concert', 'midnight-blue', 'royal-purple', 'emerald', 'elegant-white'];
                   const idx = themes.indexOf(current);
                   const next = themes[(idx + 1) % themes.length];
                   html.setAttribute('data-theme', next);

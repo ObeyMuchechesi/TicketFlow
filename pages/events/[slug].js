@@ -114,6 +114,8 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
   const [error, setError] = useState('');
   const [orderId, setOrderId] = useState(null);
   const [tokens, setTokens] = useState([]);
+  const [ecocashData, setEcocashData] = useState(null);
+  const [ecocashCopied, setEcocashCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState({});
   const [copiedLink, setCopiedLink] = useState(false);
   const [liveViewers, setLiveViewers] = useState(5);
@@ -226,6 +228,11 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
       }
       if (payMethod === 'stripe' && data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
+      } else if (payMethod === 'ecocash') {
+        setOrderId(data.orderId);
+        setTokens(data.tokens || []);
+        setEcocashData(data.ecocash || null);
+        setStep('ecocash');
       } else {
         setOrderId(data.orderId);
         setTokens(data.tokens || []);
@@ -254,7 +261,8 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
     { label: 'Payment', key: 'payment' },
     { label: 'Confirmed', key: 'confirm' }
   ];
-  const currentStepIdx = steps.findIndex(s => s.key === step);
+  // The EcoCash prompt is treated as part of the Payment step in the indicator
+  const currentStepIdx = step === 'ecocash' ? 2 : steps.findIndex(s => s.key === step);
 
   return (
     <div style={{
@@ -1011,12 +1019,12 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                     )}
 
                     {payMethod === 'ecocash' && (
-                      <div className="glass" style={{ padding: '14px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                      <div className="glass" style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.25)', background: 'linear-gradient(160deg, rgba(16,185,129,0.06), rgba(6,182,212,0.04))' }}>
                         <input type="text" required placeholder="EcoCash Number (e.g. 077123456)" value={simulatedEcocash}
                           onChange={e => setSimulatedEcocash(e.target.value.replace(/[^0-9]/g, ''))}
                           className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }} />
                         <div style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '8px', textAlign: 'center' }}>
-                          A prompt will be sent to your phone to enter your PIN.
+                          📲 After payment, your EcoCash prompt is sent to this number — enter your PIN to confirm.
                         </div>
                       </div>
                     )}
@@ -1056,9 +1064,154 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       className="premium-btn-primary pulse-glow"
                       style={{ flex: 2, padding: '14px', fontSize: '14px', background: gradientAccent }}
                     >
-                      {loading ? '⏳ Processing...' : `Pay $${total.toFixed(2)}`}
+                      {loading ? '⏳ Processing...' : payMethod === 'ecocash' ? `Pay $${total.toFixed(2)} with EcoCash` : `Pay $${total.toFixed(2)}`}
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* STEP: ECOCASH PAYMENT PROMPT */}
+              {step === 'ecocash' && (
+                <div key="step-ecocash" className="fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+                    <div style={{
+                      width: '72px', height: '72px', margin: '0 auto 16px', borderRadius: '22px',
+                      background: 'linear-gradient(135deg, #059669, #10b981)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '34px', boxShadow: '0 12px 40px -8px rgba(16,185,129,0.5)',
+                    }}>📱</div>
+                    <h3 style={{ fontSize: '22px', fontFamily: 'var(--font-display)', marginBottom: '6px', letterSpacing: '-0.02em' }}>
+                      Complete your EcoCash Payment
+                    </h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6 }}>
+                      A payment prompt will be sent to <strong style={{ color: 'var(--text)' }}>{simulatedEcocash}</strong>.
+                    </p>
+                  </div>
+
+                  {ecocashData?.configured ? (
+                    <>
+                      {/* Shortcode display */}
+                      <div className="glass" style={{
+                        padding: '24px', borderRadius: '20px', textAlign: 'center',
+                        border: '2px solid rgba(16,185,129,0.3)',
+                        background: 'linear-gradient(160deg, rgba(16,185,129,0.08), rgba(6,182,212,0.06))',
+                      }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: '10px' }}>
+                          Your Payment Shortcode
+                        </div>
+                        <div style={{
+                          fontSize: 'clamp(20px, 4.5vw, 28px)',
+                          fontWeight: 800,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: '#059669',
+                          letterSpacing: '1px',
+                          padding: '12px',
+                          borderRadius: '14px',
+                          background: 'rgba(255,255,255,0.7)',
+                          border: '1px dashed rgba(16,185,129,0.4)',
+                          wordBreak: 'break-all',
+                        }}>{ecocashData.shortcode}</div>
+
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                          <a
+                            href={ecocashData.dialUrl}
+                            className="premium-btn-primary"
+                            style={{
+                              flex: 1.4, padding: '14px', borderRadius: '14px',
+                              background: 'linear-gradient(135deg, #059669, #10b981)',
+                              color: '#fff', fontWeight: 800, fontSize: '14px',
+                              textDecoration: 'none', textAlign: 'center',
+                              boxShadow: '0 10px 30px -10px rgba(16,185,129,0.6)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            }}
+                          >
+                            📞 Tap to Dial
+                          </a>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(ecocashData.shortcode);
+                              setEcocashCopied(true);
+                              setTimeout(() => setEcocashCopied(false), 2000);
+                            }}
+                            className="premium-btn-secondary"
+                            style={{ flex: 1, padding: '14px', borderRadius: '14px', fontWeight: 700, fontSize: '13px' }}
+                          >
+                            {ecocashCopied ? '✓ Copied' : '📋 Copy'}
+                          </button>
+                        </div>
+                        <p style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '10px' }}>
+                          On phones that support USSD dialing this opens your dialer — just press call and follow the prompts.
+                        </p>
+                      </div>
+
+                      {/* Steps */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {[
+                          ['1', 'Tap to dial the shortcode above'],
+                          ['2', 'Enter your EcoCash PIN and confirm the payment on your handset'],
+                          ['3', 'Return to TiketFlow — your QR ticket unlocks instantly'],
+                        ].map(([n, t]) => (
+                          <div key={n} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                            <div style={{
+                              width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+                              background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                              color: '#fff', fontWeight: 800, fontSize: '13px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>{n}</div>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, paddingTop: '5px' }}>{t}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Order reference */}
+                      <div className="glass" style={{
+                        padding: '14px 18px', borderRadius: '14px', display: 'flex',
+                        justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', fontSize: '13px',
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: '2px' }}>Amount to Pay</div>
+                          <div style={{ fontWeight: 800, fontSize: '18px', fontFamily: 'var(--font-display)' }}>${ecocashData.amount}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '10px', color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: '2px' }}>Payment Reference</div>
+                          <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#059669', fontSize: '13px' }}>{ecocashData.reference}</div>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={() => setStep('confirm')}
+                        className="premium-btn-primary pulse-glow"
+                        style={{ width: '100%', padding: '15px', fontSize: '15px', background: 'linear-gradient(135deg, #059669, #10b981)', borderRadius: '14px' }}
+                      >
+                        ✅ I've Completed the Payment — Get My Tickets
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="glass" style={{ padding: '24px', borderRadius: '18px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '36px', marginBottom: '10px' }}>⚠️</div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6 }}>
+                        The organiser hasn't finished setting up EcoCash for this event,
+                        so your order was not created. Please choose a different payment
+                        method, or contact the organiser.
+                      </p>
+                      <Button
+                        onClick={() => { setStep('payment'); setPayMethod('stripe'); }}
+                        className="premium-btn-secondary"
+                        style={{ marginTop: '16px', padding: '12px 24px' }}
+                      >
+                        💳 Pay by Card instead
+                      </Button>
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    onClick={() => setStep('payment')}
+                    className="premium-btn-secondary"
+                    style={{ width: '100%', padding: '13px', fontSize: '13px' }}
+                  >
+                    ← Back to Payment
+                  </Button>
                 </div>
               )}
 

@@ -19,7 +19,9 @@ export default function CountdownTimer({
   accent,
   onExpire,
 }) {
-  const [time, setTime] = useState(() => compute(target));
+  // Start with null (SSR-safe) and compute only after mount to avoid
+  // server/client hydration mismatches from Date.now().
+  const [time, setTime] = useState(null);
 
   useEffect(() => {
     setTime(compute(target));
@@ -30,6 +32,25 @@ export default function CountdownTimer({
     }, 1000);
     return () => clearInterval(iv);
   }, [target, onExpire]);
+
+  if (time === null) {
+    return (
+      <div style={{
+        padding: compact ? '8px 14px' : '12px 20px',
+        borderRadius: 'var(--radius-md)',
+        background: 'rgba(16, 185, 129, 0.08)',
+        color: 'var(--success)',
+        fontWeight: 700,
+        fontSize: compact ? '12px' : '14px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        minWidth: compact ? 0 : '120px',
+      }}>
+        ⏳
+      </div>
+    );
+  }
 
   if (!time) {
     return (

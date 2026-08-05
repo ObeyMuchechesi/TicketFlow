@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 
 const THEMES = [
+  { id: 'vibrant', name: 'Vibrant Light', color: '#7c3aed' },
   { id: 'dark-concert', name: 'Dark Concert', color: '#a855f7' },
   { id: 'elegant-white', name: 'Elegant White', color: '#6366f1' },
   { id: 'midnight-blue', name: 'Midnight Blue', color: '#3b82f6' },
@@ -12,7 +13,7 @@ const THEMES = [
 
 export default function Layout({ children, title = 'TiketFlow', description = 'Premium digital ticketing for events & concerts' }) {
   const router = useRouter();
-  const [activeTheme, setActiveTheme] = useState('dark-concert');
+  const [activeTheme, setActiveTheme] = useState('vibrant');
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,7 +23,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
   const isHidden = isAdmin || isCheckin;
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('tf-theme') || 'dark-concert';
+    const savedTheme = localStorage.getItem('tf-theme') || 'vibrant';
     setActiveTheme(savedTheme);
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
@@ -66,21 +67,14 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
             </a>
 
             <ul className="tf-nav-links">
-              <li><a href="/#events-grid">Events</a></li>
+              <li><a href="/#events-section">Browse Events</a></li>
+              <li><a href="/#categories">Categories</a></li>
               <li><a href="/dashboard">My Tickets</a></li>
-              <li><a href="/admin">Admin</a></li>
-              <li><a href="/checkin">Check-In</a></li>
+              <li><a href="/#about">About</a></li>
+              <li><a href="mailto:support@tiketflow.com">Contact</a></li>
             </ul>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                onClick={() => router.push('/admin/events/new')}
-                className="tf-btn tf-btn-primary tf-btn-sm"
-                style={{ display: 'none' }}
-              >
-                Create Event
-              </button>
-
               {/* Mobile menu toggle */}
               <button
                 className="tf-btn tf-btn-ghost tf-btn-icon"
@@ -105,10 +99,10 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
               flexDirection: 'column',
               gap: '8px',
             }}>
-              <a href="/#events-grid" className="tf-btn tf-btn-ghost" style={{ justifyContent: 'flex-start' }}>Events</a>
+              <a href="/#events-section" className="tf-btn tf-btn-ghost" style={{ justifyContent: 'flex-start' }}>Browse Events</a>
               <a href="/#categories" className="tf-btn tf-btn-ghost" style={{ justifyContent: 'flex-start' }}>Categories</a>
-              <a href="/admin" className="tf-btn tf-btn-ghost" style={{ justifyContent: 'flex-start' }}>Dashboard</a>
-              <a href="/checkin" className="tf-btn tf-btn-ghost" style={{ justifyContent: 'flex-start' }}>Check-In</a>
+              <a href="/dashboard" className="tf-btn tf-btn-ghost" style={{ justifyContent: 'flex-start' }}>My Tickets</a>
+              <a href="mailto:support@tiketflow.com" className="tf-btn tf-btn-ghost" style={{ justifyContent: 'flex-start' }}>Contact</a>
             </div>
           )}
         </nav>
@@ -149,22 +143,22 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
                 <a href="/?category=Church">Church & Community</a>
               </div>
 
-              {/* Organisers */}
+              {/* Support */}
               <div className="tf-footer-column">
-                <h4>Organisers</h4>
-                <a href="/admin">Partner Dashboard</a>
-                <a href="/admin/events/new">Create Event</a>
-                <a href="/checkin">Gate Staff Login</a>
-                <a href="mailto:support@tiketflow.com">Support Center</a>
+                <h4>Support</h4>
+                <a href="#about">About Us</a>
+                <a href="mailto:support@tiketflow.com">Contact</a>
+                <a href="#">Help Center</a>
+                <a href="#">FAQ</a>
               </div>
 
-              {/* Resources */}
+              {/* Company */}
               <div className="tf-footer-column">
-                <h4>Resources</h4>
-                <a href="#">API Documentation</a>
-                <a href="#">Pricing</a>
-                <a href="#">Help Center</a>
-                <a href="#">Status Page</a>
+                <h4>Company</h4>
+                <a href="/dashboard">My Tickets</a>
+                <a href="/#events-section">Browse Events</a>
+                <a href="/#categories">Event Categories</a>
+                <a href="#">Terms of Service</a>
               </div>
             </div>
 

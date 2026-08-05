@@ -22,7 +22,15 @@ export default async function handler(req, res) {
       delete updates.id; delete updates.organiser_id; delete updates.created_at;
       if (updates.slug) updates.slug = updates.slug.toLowerCase().replace(/\s+/g, '-');
 
-      const { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single();
+      let { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single();
+
+      // Graceful fallback for databases not yet migrated with EcoCash columns
+      if (error && /ecocash_|column .* does not exist/.test(error.message)) {
+        const safe = { ...updates };
+        delete safe.ecocash_type; delete safe.ecocash_code; delete safe.ecocash_phone;
+        ({ data, error } = await supabase.from('events').update(safe).eq('id', id).select().single());
+      }
+
       if (error) return res.status(400).json({ error: error.message });
       return res.json({ event: data });
     } catch (err) { return res.status(err.status || 500).json({ error: err.message }); }

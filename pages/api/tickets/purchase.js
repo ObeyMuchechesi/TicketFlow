@@ -1,5 +1,6 @@
 import { getServiceClient } from '../../../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { buildEcocashShortcode, generateEcocashReference, dialableShortcode } from '../../../lib/ecocash';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -40,8 +41,11 @@ export default async function handler(req, res) {
       }
     }
 
-    const unitPrice = tt.price;
-    const discountedPrice = unitPrice * (1 - discount / 100);
+    const unitPrice = Number(tt.price);
+    const baseTotal = unitPrice * Number(quantity);
+    const discountAmt = Math.round(baseTotal * discount / 100 * 100) / 100;
+    const serviceFee = Math.round(baseTotal * 0.05 * 100) / 100;
+    const total = Math.round((baseTotal - discountAmt + serviceFee) * 100) / 100;
 
     // If Stripe, create a Checkout session
     if (paymentMethod === 'stripe') {
@@ -57,7 +61,7 @@ export default async function handler(req, res) {
           price_data: {
             currency: 'usd',
             product_data: { name: `${tt.name} — TiketFlow` },
-            unit_amount: Math.round(discountedPrice * 100),
+            unit_amount: Math.round(discountedUnitPrice(unitPrice, discount) * 100),
           },
           quantity: Number(quantity),
         }],
@@ -75,8 +79,44 @@ export default async function handler(req, res) {
       return res.json({ checkoutUrl: session.url });
     }
 
-    // For other payment methods (EcoCash, PayPal) — create tickets immediately
-    // In production: integrate with payment gateway, verify payment, then create tickets
+    // ─────────────────────────────────────────────────────────
+    // EcoCash: auto-generate the USSD payment instructions.
+    // We validate the organiser's config BEFORE creating any tickets
+    // so we never mint unpaid tickets the customer can't actually pay for.
+    // ─────────────────────────────────────────────────────────
+    let ecocash = null;
+    if (paymentMethod === 'ecocash') {
+      const reference = generateEcocashReference();
+      const { data: event } = await supabase
+        .from('events')
+        .select('ecocash_type, ecocash_code, ecocash_phone')
+        .eq('id', eventId)
+        .single();
+
+      const shortcode = buildEcocashShortcode({
+        type: event?.ecocash_type,
+        code: event?.ecocash_code,
+        amount: total,
+        reference,
+      });
+
+      ecocash = {
+        shortcode,
+        dialUrl: dialableShortcode(shortcode),
+        reference,
+        amount: total.toFixed(2),
+        type: event?.ecocash_type || 'none',
+        phone: event?.ecocash_phone || null,
+        configured: Boolean(shortcode),
+      };
+
+      if (!ecocash.configured) {
+        return res.status(400).json({
+          error: 'EcoCash is not configured for this event yet. Please pay by card or contact the organiser.',
+        });
+      }
+    }
+
     const tokens = [];
     const ticketInserts = [];
     for (let i = 0; i < Number(quantity); i++) {
@@ -106,17 +146,22 @@ export default async function handler(req, res) {
     if (firstTicket) {
       await supabase.from('payments').insert({
         ticket_id: firstTicket.id,
-        amount: discountedPrice * quantity,
+        amount: total,
         currency: 'USD',
         payment_method: paymentMethod,
         status: paymentMethod === 'ecocash' ? 'pending' : 'completed',
+        transaction_ref: ecocash?.reference || null,
         paid_at: new Date().toISOString(),
       });
     }
 
-    return res.json({ success: true, tokens, orderId: tokens[0] });
+    return res.json({ success: true, tokens, orderId: tokens[0], ecocash });
   } catch (err) {
     console.error('Purchase error:', err);
     return res.status(500).json({ error: 'Purchase failed. Please try again.' });
   }
+}
+
+function discountedUnitPrice(unitPrice, discount) {
+  return unitPrice * (1 - discount / 100);
 }
