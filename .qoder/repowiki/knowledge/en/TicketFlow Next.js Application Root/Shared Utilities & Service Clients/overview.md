@@ -1,0 +1,1 @@
+Provides cross-cutting helpers for password hashing, session token management, and singleton clients for Supabase and Stripe used throughout the application.

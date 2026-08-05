@@ -1,0 +1,1 @@
+Next.js public-facing entry points that render the marketing landing page with event discovery, search, categories, testimonials, and sponsors, plus the global app wrapper and document configuration.

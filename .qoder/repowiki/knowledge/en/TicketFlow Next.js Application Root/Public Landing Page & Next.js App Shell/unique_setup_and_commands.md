@@ -1,0 +1,1 @@
+Requires `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` environment variables for server-side event fetching; without them the page gracefully falls back to the embedded demo events.

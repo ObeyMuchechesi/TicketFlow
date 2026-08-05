@@ -1,0 +1,5 @@
+- Each page defines a `getLayout` static method (or relies on `_app.js`'s default) to wrap its content in the shared `Layout` component, enabling consistent chrome across routes.
+- Server data fetching is done inside `getServerSideProps` with a try/catch that returns `{ props: { events: [] } }` as a safe fallback, allowing the page to render demo data when the database is unavailable.
+- Client-side user preferences (favorites) are persisted to `localStorage` using a namespaced key (`tf-favs`) and synchronized with React state via `useEffect` on mount.
+- UI sections are structured as self-contained `<section>` blocks with consistent `tf-section-header` / `tf-section-badge` / `tf-section-title` markup patterns for visual rhythm.
+- Reusable pure helper functions (`formatDate`, `minPrice`, `totalTickets`, `totalSold`, `percentSold`, `daysUntil`, `detectCategory`) are defined at module scope and passed as props or called directly, keeping JSX focused on layout rather than computation.

@@ -1,0 +1,1 @@
+Requires environment variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `STRIPE_SECRET_KEY`; missing Supabase vars emit a console warning and fall back to placeholder values.

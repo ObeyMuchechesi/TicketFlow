@@ -1,0 +1,3 @@
+- External services are exposed as module-level singleton instances created once at import time (e.g., `new Stripe(...)`, `createClient(...)`).
+- Environment variables are read directly from `process.env` with fallback placeholders rather than being validated at startup.
+- Auth-related helpers are pure async functions that throw plain objects with `status` and `message` properties for error propagation.

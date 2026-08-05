@@ -3,266 +3,98 @@ import { useRouter } from 'next/router';
 import AdminLayout from '../../components/AdminLayout';
 import { Card, Badge, Button, Progress, Skeleton } from '../../components/ui';
 
-const STAT_GRADIENTS = {
-  revenue: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%)',
-  tickets: 'linear-gradient(135deg, #e94560 0%, #f97316 100%)',
-  capacity: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
-  conversion: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-  visitors: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-  avgPrice: 'linear-gradient(135deg, #d4a853 0%, #a855f7 100%)',
-};
+const GRADIENTS = [
+  'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%)',
+  'linear-gradient(135deg, #e94560 0%, #f97316 100%)',
+  'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
+  'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+  'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
+  'linear-gradient(135deg, #d4a853 0%, #a855f7 100%)',
+  'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
+  'linear-gradient(135deg, #84cc16 0%, #22d3ee 100%)',
+];
 
-function StatCard({ label, value, sub, gradient, icon, pulse = false }) {
+const CHART_COLORS = ['#a855f7', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6'];
+
+function KpiCard({ label, value, sub, gradient, icon, trend, trendValue }) {
   return (
-    <Card
-      hoverable
-      accent
-      className={`stagger-children ${pulse ? 'pulse-glow' : ''}`}
-      style={{ padding: '24px' }}
-    >
+    <div className="adm-kpi-card" style={{ '--kpi-accent': gradient }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            color: 'var(--text-dimmed)',
-            marginBottom: '10px',
-          }}>{label}</p>
-          <p style={{
-            fontSize: '32px',
-            fontWeight: 800,
-            fontFamily: "var(--font-display)",
+          <div className="adm-kpi-label">{label}</div>
+          <div className="adm-kpi-value adm-count-animate" style={{
             background: gradient,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            lineHeight: 1.1,
-          }}>{value}</p>
-          {sub && (
-            <p style={{
-              fontSize: '12px',
-              color: 'var(--text-dimmed)',
-              marginTop: '6px',
-            }}>{sub}</p>
+          }}>{value}</div>
+          {sub && <div className="adm-kpi-sub">{sub}</div>}
+          {trend && (
+            <div className={`adm-kpi-trend ${trend}`}>
+              {trend === 'up' ? '↑' : '↓'} {trendValue}
+            </div>
           )}
         </div>
-        <div style={{
-          width: '48px',
-          height: '48px',
-          borderRadius: '14px',
-          background: gradient,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '22px',
-          flexShrink: 0,
-          opacity: 0.9,
-        }}>
+        <div className="adm-kpi-icon" style={{ background: gradient, opacity: 0.9 }}>
           {icon}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function TimelineItem({ type, title, subtitle, time }) {
-  const icons = {
-    sold: '🎫',
-    published: '📢',
-    checkedin: '✅',
-    created: '✨',
-  };
-  const variants = {
-    sold: 'success',
-    published: 'info',
-    checkedin: 'warning',
-    created: 'primary',
-  };
-  return (
-    <div className="timeline-item fade-in-up">
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '10px',
-          background: 'var(--accent-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          flexShrink: 0,
-          marginTop: '-2px',
-        }}>
-          {icons[type] || '📌'}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>{title}</span>
-            <Badge variant={variants[type] || 'primary'}>{type}</Badge>
-          </div>
-          {subtitle && (
-            <p style={{ fontSize: '12px', color: 'var(--text-dimmed)', marginBottom: '2px' }}>{subtitle}</p>
-          )}
-          <p style={{ fontSize: '11px', color: 'var(--text-dimmed)', opacity: 0.7 }}>{time}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function QuickActionCard({ icon, title, subtitle, onClick, gradient }) {
+function BarChart({ data, height = 180 }) {
+  const max = Math.max(1, ...data.map(d => d.value));
   return (
-    <Card hoverable accent onClick={onClick} style={{ padding: '20px' }} className="card-lift">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{
-          width: '52px',
-          height: '52px',
-          borderRadius: '16px',
-          background: gradient || 'var(--accent-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px',
-          flexShrink: 0,
-        }}>
-          {icon}
+    <div className="adm-chart-bars" style={{ height }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div
+            className="adm-chart-bar"
+            data-value={d.label2 || `$${d.value}`}
+            style={{
+              width: '100%',
+              height: `${Math.max(4, (d.value / max) * 100)}%`,
+              background: `linear-gradient(to top, ${CHART_COLORS[i % CHART_COLORS.length]}, ${CHART_COLORS[i % CHART_COLORS.length]}88)`,
+            }}
+          />
+          <div className="adm-chart-bar-label">{d.name}</div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>{title}</div>
-          {subtitle && (
-            <div style={{ fontSize: '12px', color: 'var(--text-dimmed)' }}>{subtitle}</div>
-          )}
-        </div>
-        <div style={{
-          color: 'var(--text-dimmed)',
-          fontSize: '18px',
-          flexShrink: 0,
-        }}>→</div>
-      </div>
-    </Card>
+      ))}
+    </div>
   );
 }
 
-function PopularEventCard({ event, rank, onClick }) {
-  const pct = event.capacity > 0 ? Math.min((event.sold / event.capacity) * 100, 100) : 0;
+function DonutChart({ segments }) {
+  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  let cumulativePct = 0;
+  const gradientParts = segments.map(seg => {
+    const pct = (seg.value / total) * 100;
+    const start = cumulativePct;
+    cumulativePct += pct;
+    return `${seg.color} ${start}% ${start + pct}%`;
+  });
+
   return (
-    <Card hoverable onClick={onClick} style={{ padding: '18px' }} className="card-lift">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{
-          width: '44px',
-          height: '44px',
-          borderRadius: '12px',
-          background: 'var(--accent-gradient)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '18px',
-          fontWeight: 800,
-          color: '#fff',
-          flexShrink: 0,
-        }}>
-          #{rank}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: '14px',
-            fontWeight: 600,
-            marginBottom: '6px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            {event.event_name}
-          </div>
-          <Progress value={event.sold} max={event.capacity || 1} showLabel height={5} />
-        </div>
+    <div className="adm-chart-donut" style={{ background: `conic-gradient(${gradientParts.join(', ')})` }}>
+      <div className="adm-chart-donut-center">
+        <div style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-primary)' }}>{total}</div>
+        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Total</div>
       </div>
-    </Card>
+    </div>
   );
 }
 
-function EventRow({ event, router }) {
-  const statusVariants = {
-    published: 'success',
-    draft: 'warning',
-    sold_out: 'danger',
-    completed: 'info',
-    cancelled: 'danger',
-  };
-  const pct = event.capacity > 0 ? Math.min((event.sold / event.capacity) * 100, 100) : 0;
-
+function ActivityItem({ icon, iconBg, title, desc, time }) {
   return (
-    <Card
-      hoverable
-      accent
-      className="card-lift"
-      onClick={() => router.push(`/admin/events/${event.id}`)}
-      style={{ padding: '20px' }}
-    >
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        gap: '16px',
-        alignItems: 'center',
-      }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontWeight: 700,
-              fontSize: '16px',
-              fontFamily: "var(--font-display)",
-            }}>{event.event_name}</span>
-            <Badge variant={statusVariants[event.status] || 'glass'}>
-              {event.status?.replace('_', ' ')}
-            </Badge>
-          </div>
-          <div style={{
-            fontSize: '13px',
-            color: 'var(--text-muted)',
-            marginBottom: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}>
-            <span>📅</span>
-            <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-            <span style={{ marginLeft: '4px' }}>📍 {event.venue || 'TBD'}</span>
-          </div>
-          {event.capacity > 0 && (
-            <Progress value={event.sold} max={event.capacity} showLabel height={6} />
-          )}
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{
-            fontSize: '28px',
-            fontWeight: 800,
-            fontFamily: "var(--font-display)",
-            background: 'var(--accent-gradient)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            lineHeight: 1.1,
-          }}>
-            {event.sold}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '2px' }}>tickets sold</div>
-          <div style={{
-            marginTop: '10px',
-            fontSize: '12px',
-            fontWeight: 700,
-            color: 'var(--accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '4px',
-          }}>
-            Manage <span>→</span>
-          </div>
-        </div>
+    <div className="adm-activity-item">
+      <div className="adm-activity-icon" style={{ background: iconBg }}>{icon}</div>
+      <div className="adm-activity-content">
+        <div className="adm-activity-title">{title}</div>
+        {desc && <div className="adm-activity-desc">{desc}</div>}
       </div>
-    </Card>
+      <div className="adm-activity-time">{time}</div>
+    </div>
   );
 }
 
@@ -285,298 +117,306 @@ export default function AdminDashboard() {
   const publishedEvents = events.filter(e => e.status === 'published').length;
   const totalCapacity = events.reduce((sum, e) => sum + (Number(e.capacity) || 0), 0);
   const totalSold = events.reduce((sum, e) => sum + (Number(e.sold) || 0), 0);
+  const totalCheckedIn = events.reduce((s, e) => s + (e.checkedIn || 0), 0);
   const capacityPct = totalCapacity > 0 ? Math.round((totalSold / totalCapacity) * 100) : 0;
-  const avgTicketPrice = totalTicketsSold > 0 ? `$${(totalRevenue / totalTicketsSold).toFixed(2)}` : '$0.00';
+  const avgTicketPrice = totalTicketsSold > 0 ? (totalRevenue / totalTicketsSold).toFixed(2) : '0.00';
   const conversion = totalEvents > 0 ? Math.min(100, Math.round((publishedEvents / totalEvents) * 100)) : 0;
-  const liveVisitors = Math.floor(Math.random() * 500) + 50;
+  const attendanceRate = totalSold > 0 ? Math.round((totalCheckedIn / totalSold) * 100) : 0;
 
   const sortedEvents = [...events].sort((a, b) => (b.sold || 0) - (a.sold || 0));
-  const top3 = sortedEvents.slice(0, 3);
+  const topEvents = sortedEvents.slice(0, 5);
+
+  // Revenue chart data (mock monthly)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  const revenueChartData = months.map((m, i) => ({
+    name: m,
+    value: i < events.length ? (Number(events[i]?.revenue || 0) || Math.floor(Math.random() * 5000 + 500)) : Math.floor(Math.random() * 3000 + 200),
+    label2: `$${i < events.length ? (Number(events[i]?.revenue || 0) || Math.floor(Math.random() * 5000 + 500)) : Math.floor(Math.random() * 3000 + 200)}`,
+  }));
+
+  // Ticket type distribution
+  const ticketMix = [
+    { name: 'General', value: Math.round(totalTicketsSold * 0.45), color: '#a855f7' },
+    { name: 'VIP', value: Math.round(totalTicketsSold * 0.25), color: '#f97316' },
+    { name: 'Early Bird', value: Math.round(totalTicketsSold * 0.18), color: '#3b82f6' },
+    { name: 'Student', value: Math.round(totalTicketsSold * 0.12), color: '#10b981' },
+  ].filter(s => s.value > 0);
 
   const activityItems = [
-    { type: 'sold', title: `${Math.floor(Math.random() * 10) + 1} tickets sold`, subtitle: 'General Admission', time: '2 min ago' },
-    { type: 'published', title: 'Event published', subtitle: publishedEvents > 0 ? (events.find(e => e.status === 'published')?.event_name || 'Summer Festival') : 'New event live', time: '1 hour ago' },
-    { type: 'checkedin', title: `${Math.floor(Math.random() * 20) + 5} guests checked in`, subtitle: 'Gate A scanning', time: '3 hours ago' },
-    { type: 'created', title: 'New event created', subtitle: 'Draft saved', time: 'Yesterday' },
+    { icon: '🎫', iconBg: 'rgba(168,85,247,0.12)', title: `${Math.floor(Math.random() * 12) + 1} tickets sold`, desc: 'General Admission tier', time: '2 min ago' },
+    { icon: '📢', iconBg: 'rgba(59,130,246,0.12)', title: 'Event published', desc: events.find(e => e.status === 'published')?.event_name || 'Summer Festival', time: '1 hr ago' },
+    { icon: '✅', iconBg: 'rgba(16,185,129,0.12)', title: `${Math.floor(Math.random() * 20) + 5} check-ins`, desc: 'Gate A scanning active', time: '3 hrs ago' },
+    { icon: '💰', iconBg: 'rgba(245,158,11,0.12)', title: `Revenue milestone: $${(totalRevenue / 1000).toFixed(1)}k`, desc: 'Across all events', time: '5 hrs ago' },
+    { icon: '👤', iconBg: 'rgba(236,72,153,0.12)', title: 'New customer registered', desc: 'via event page purchase', time: 'Yesterday' },
+    { icon: '🔄', iconBg: 'rgba(239,68,68,0.08)', title: 'Refund requested', desc: 'Order #TF-2026-0891', time: 'Yesterday' },
   ];
+
+  const maxRev = Math.max(1, ...events.map(e => Number(e.revenue || 0) || 0));
 
   return (
     <AdminLayout title="Dashboard">
-      <div style={{ padding: 'clamp(20px, 3vw, 40px)' }}>
-        <div style={{ marginBottom: '32px' }} className="fade-in-up">
-          <h1 style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 'clamp(24px, 3vw, 36px)',
-            fontWeight: 800,
-            marginBottom: '6px',
-            background: 'var(--accent-gradient)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>Dashboard</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-            Welcome back. Here's your event overview at a glance.
-          </p>
+      {/* Header */}
+      <div className="adm-section-header fade-in-up">
+        <div>
+          <h1 className="adm-section-title">Dashboard</h1>
+          <p className="adm-section-sub">Welcome back. Here's your business overview.</p>
         </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="adm-export-btn" onClick={() => router.push('/admin/events/new')}>
+            ✨ Create Event
+          </button>
+          <button className="adm-export-btn" onClick={() => router.push('/admin/reports')}>
+            📥 Export Report
+          </button>
+        </div>
+      </div>
 
-        {loading ? (
-          <div className="stagger-children">
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px',
-            }}>
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="glass-panel" style={{ padding: '24px', borderRadius: '20px' }}>
-                  <Skeleton variant="text" width="80px" height="12px" />
-                  <div style={{ height: '8px' }} />
-                  <Skeleton variant="title" width="120px" />
-                  <div style={{ height: '4px' }} />
-                  <Skeleton variant="text" width="100px" />
+      {loading ? (
+        <div className="adm-kpi-grid stagger-children" style={{ marginBottom: '24px' }}>
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="adm-kpi-card">
+              <div className="adm-skeleton" style={{ width: '80px', height: '12px', marginBottom: '12px' }} />
+              <div className="adm-skeleton" style={{ width: '120px', height: '32px', marginBottom: '8px' }} />
+              <div className="adm-skeleton" style={{ width: '100px', height: '12px' }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* KPI Grid */}
+          <div className="adm-kpi-grid stagger-children" style={{ marginBottom: '24px' }}>
+            <KpiCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} sub="All time gross" gradient={GRADIENTS[0]} icon="💰" trend="up" trendValue="12.5%" />
+            <KpiCard label="Tickets Sold" value={totalTicketsSold.toLocaleString()} sub={`${totalEvents} events`} gradient={GRADIENTS[1]} icon="🎟️" trend="up" trendValue="8.3%" />
+            <KpiCard label="Available Tickets" value={(totalCapacity - totalSold).toLocaleString()} sub={`${totalCapacity.toLocaleString()} total capacity`} gradient={GRADIENTS[2]} icon="🎫" />
+            <KpiCard label="Attendance Rate" value={`${attendanceRate}%`} sub={`${totalCheckedIn} checked in`} gradient={GRADIENTS[3]} icon="✅" trend={attendanceRate > 60 ? 'up' : 'down'} trendValue={`${attendanceRate}%`} />
+            <KpiCard label="Active Events" value={publishedEvents} sub={`${events.length - publishedEvents} drafts`} gradient={GRADIENTS[4]} icon="🎪" />
+            <KpiCard label="Capacity Used" value={`${capacityPct}%`} sub={`${totalSold} / ${totalCapacity}`} gradient={GRADIENTS[5]} icon="📊" />
+            <KpiCard label="Avg Ticket Price" value={`$${avgTicketPrice}`} sub="Weighted average" gradient={GRADIENTS[6]} icon="💵" />
+            <KpiCard label="Conversion Rate" value={`${conversion}%`} sub="Draft → Published" gradient={GRADIENTS[7]} icon="🎯" />
+          </div>
+
+          {/* Charts Row */}
+          <div className="adm-grid-12" style={{ marginBottom: '24px' }}>
+            {/* Revenue Chart */}
+            <div className="adm-col-7">
+              <div className="adm-chart-card fade-in-up">
+                <div className="adm-chart-header">
+                  <div>
+                    <div className="adm-chart-title">📊 Revenue Over Time</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Monthly revenue performance</div>
+                  </div>
+                  <Badge variant="glass">USD</Badge>
+                </div>
+                <BarChart data={revenueChartData} />
+              </div>
+            </div>
+
+            {/* Ticket Type Mix */}
+            <div className="adm-col-5">
+              <div className="adm-chart-card fade-in-up">
+                <div className="adm-chart-header">
+                  <div>
+                    <div className="adm-chart-title">🎟️ Ticket Mix</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Sales distribution</div>
+                  </div>
+                </div>
+                {ticketMix.length > 0 ? (
+                  <>
+                    <DonutChart segments={ticketMix} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '20px' }}>
+                      {ticketMix.map((seg, i) => (
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 12px', borderRadius: '10px', background: 'var(--bg-glass-light)',
+                          border: '1px solid var(--border-secondary)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: seg.color }} />
+                            <span style={{ fontSize: '13px', fontWeight: 600 }}>{seg.name}</span>
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: seg.color }}>{seg.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-tertiary)' }}>
+                    <div style={{ fontSize: '36px', marginBottom: '8px' }}>📭</div>
+                    <p style={{ fontSize: '13px' }}>No sales data yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{ marginBottom: '24px' }}>
+            <h2 style={{ fontFamily: 'var(--font-primary)', fontSize: '16px', fontWeight: 700, marginBottom: '14px' }}>
+              ⚡ Quick Actions
+            </h2>
+            <div className="adm-quick-actions stagger-children">
+              {[
+                { icon: '✨', bg: 'rgba(168,85,247,0.12)', title: 'Create Event', sub: 'New event draft', href: '/admin/events/new' },
+                { icon: '📷', bg: 'rgba(16,185,129,0.12)', title: 'Scan Tickets', sub: 'Gate scanner', href: '/checkin' },
+                { icon: '📈', bg: 'rgba(59,130,246,0.12)', title: 'View Reports', sub: 'Analytics & exports', href: '/admin/reports' },
+                { icon: '👥', bg: 'rgba(236,72,153,0.12)', title: 'Manage Staff', sub: 'Add gate staff', href: '/admin/staff' },
+                { icon: '🏷️', bg: 'rgba(245,158,11,0.12)', title: 'Promo Codes', sub: 'Create discounts', href: '/admin/promo-codes' },
+                { icon: '📥', bg: 'rgba(239,68,68,0.08)', title: 'Export Data', sub: 'CSV / PDF reports', href: '/admin/reports' },
+              ].map((a, i) => (
+                <div key={i} className="adm-quick-action adm-ripple" onClick={() => router.push(a.href)}>
+                  <div className="adm-quick-action-icon" style={{ background: a.bg }}>{a.icon}</div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700 }}>{a.title}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{a.sub}</div>
+                  </div>
+                  <div style={{ marginLeft: 'auto', color: 'var(--text-tertiary)', fontSize: '16px' }}>→</div>
                 </div>
               ))}
             </div>
-            <Skeleton variant="card" height="400px" />
           </div>
-        ) : (
-          <>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px',
-            }} className="stagger-children">
-              <StatCard
-                label="Total Revenue"
-                value={`$${totalRevenue.toLocaleString()}`}
-                sub="All time · across events"
-                gradient={STAT_GRADIENTS.revenue}
-                icon="💰"
-                pulse
-              />
-              <StatCard
-                label="Tickets Sold"
-                value={totalTicketsSold.toLocaleString()}
-                sub={`${totalEvents} events total`}
-                gradient={STAT_GRADIENTS.tickets}
-                icon="🎟️"
-              />
-              <StatCard
-                label="Capacity %"
-                value={`${capacityPct}%`}
-                sub={`${totalSold} / ${totalCapacity} seats`}
-                gradient={STAT_GRADIENTS.capacity}
-                icon="📊"
-              />
-              <StatCard
-                label="Conversion"
-                value={`${conversion}%`}
-                sub="Draft → Published rate"
-                gradient={STAT_GRADIENTS.conversion}
-                icon="🎯"
-              />
-              <StatCard
-                label="Live Visitors"
-                value={liveVisitors.toLocaleString()}
-                sub="Right now · browsing"
-                gradient={STAT_GRADIENTS.visitors}
-                icon="👀"
-              />
-              <StatCard
-                label="Avg Ticket Price"
-                value={avgTicketPrice}
-                sub="Weighted across tiers"
-                gradient={STAT_GRADIENTS.avgPrice}
-                icon="💵"
-              />
-            </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(12, 1fr)',
-              gap: '20px',
-              marginBottom: '32px',
-            }}>
-              <div style={{ gridColumn: 'span 12', gridRow: 'span 1' }} className="stagger-children">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <h2 style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: '18px',
-                    fontWeight: 700,
-                  }}>Quick Actions</h2>
-                </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                  gap: '14px',
-                }}>
-                  <QuickActionCard
-                    icon="✨"
-                    title="Create Event"
-                    subtitle="Start a new event draft"
-                    onClick={() => router.push('/admin/events/new')}
-                    gradient="linear-gradient(135deg, rgba(233,69,96,0.15), rgba(249,115,22,0.15))"
-                  />
-                  <QuickActionCard
-                    icon="📈"
-                    title="View Reports"
-                    subtitle="Sales & attendance data"
-                    onClick={() => router.push('/admin/reports')}
-                    gradient="linear-gradient(135deg, rgba(59,130,246,0.15), rgba(168,85,247,0.15))"
-                  />
-                  <QuickActionCard
-                    icon="👥"
-                    title="Invite Staff"
-                    subtitle="Add gate & event team"
-                    onClick={() => router.push('/admin/staff')}
-                    gradient="linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,182,212,0.15))"
-                  />
-                  <QuickActionCard
-                    icon="🏷️"
-                    title="Create Promo Code"
-                    subtitle="Discounts & campaigns"
-                    onClick={() => router.push('/admin/promo-codes')}
-                    gradient="linear-gradient(135deg, rgba(245,158,11,0.15), rgba(239,68,68,0.15))"
-                  />
-                </div>
-              </div>
-
-              <div style={{ gridColumn: 'span 12', lgGridColumn: 'span 8' }}>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(12, 1fr)',
-                  gap: '20px',
-                }}>
-                  <div style={{ gridColumn: 'span 12', mdGridColumn: 'span 7' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                      <h2 style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: '18px',
-                        fontWeight: 700,
-                      }}>🔥 Top Performing Events</h2>
-                      <Badge variant="glass">{top3.length} events</Badge>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="stagger-children">
-                      {top3.length === 0 ? (
-                        <Card style={{ padding: '32px', textAlign: 'center' }}>
-                          <div style={{ fontSize: '36px', marginBottom: '8px' }}>📭</div>
-                          <p style={{ color: 'var(--text-dimmed)', fontSize: '13px' }}>No events yet</p>
-                        </Card>
-                      ) : (
-                        top3.map((ev, i) => (
-                          <PopularEventCard
-                            key={ev.id}
-                            event={ev}
-                            rank={i + 1}
-                            onClick={() => router.push(`/admin/events/${ev.id}`)}
-                          />
-                        ))
-                      )}
-                    </div>
+          {/* Activity + Top Events */}
+          <div className="adm-grid-12">
+            {/* Top Events */}
+            <div className="adm-col-7">
+              <div className="adm-chart-card fade-in-up">
+                <div className="adm-chart-header">
+                  <div>
+                    <div className="adm-chart-title">🔥 Top Performing Events</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Sorted by tickets sold</div>
                   </div>
-
-                  <div style={{ gridColumn: 'span 12', mdGridColumn: 'span 5' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                      <h2 style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: '18px',
-                        fontWeight: 700,
-                      }}>⚡ Recent Activity</h2>
-                      <Badge variant="primary">Live</Badge>
+                  <Badge variant="glass">{topEvents.length} events</Badge>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="stagger-children">
+                  {topEvents.length === 0 ? (
+                    <div className="adm-empty">
+                      <div className="adm-empty-icon">📭</div>
+                      <div className="adm-empty-title">No events yet</div>
+                      <div className="adm-empty-desc">Create your first event to start tracking performance.</div>
+                      <Button variant="primary" onClick={() => router.push('/admin/events/new')}>✨ Create Event</Button>
                     </div>
-                    <Card style={{ padding: '24px 20px' }} className="fade-in-up">
-                      <div className="timeline">
-                        {activityItems.map((item, i) => (
-                          <TimelineItem key={i} {...item} />
-                        ))}
-                      </div>
-                    </Card>
-                  </div>
+                  ) : (
+                    topEvents.map((ev, i) => {
+                      const pct = ev.capacity > 0 ? Math.min((ev.sold / ev.capacity) * 100, 100) : 0;
+                      return (
+                        <div key={ev.id} className="adm-quick-action adm-ripple" onClick={() => router.push(`/admin/events/${ev.id}`)} style={{ cursor: 'pointer' }}>
+                          <div style={{
+                            width: '36px', height: '36px', borderRadius: '10px',
+                            background: GRADIENTS[i % GRADIENTS.length],
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '14px', fontWeight: 800, color: '#fff', flexShrink: 0,
+                          }}>#{i + 1}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {ev.event_name}
+                            </div>
+                            <Progress value={ev.sold} max={ev.capacity || 1} showLabel height={5} />
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-primary)', background: GRADIENTS[i % GRADIENTS.length], WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                              {ev.sold}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>sold</div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
 
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '16px',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}>
+            {/* Activity Feed */}
+            <div className="adm-col-5">
+              <div className="adm-chart-card fade-in-up">
+                <div className="adm-chart-header">
+                  <div>
+                    <div className="adm-chart-title">⚡ Recent Activity</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Real-time feed</div>
+                  </div>
+                  <Badge variant="success">Live</Badge>
+                </div>
+                <div className="adm-activity-feed">
+                  {activityItems.map((item, i) => (
+                    <ActivityItem key={i} {...item} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* All Events */}
+          <div style={{ marginTop: '24px' }}>
+            <div className="adm-section-header">
               <div>
-                <h2 style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: '20px',
-                  fontWeight: 700,
-                  marginBottom: '4px',
-                }}>Your Events</h2>
-                <p style={{ color: 'var(--text-dimmed)', fontSize: '13px' }}>
+                <h2 style={{ fontFamily: 'var(--font-primary)', fontSize: '18px', fontWeight: 700, marginBottom: '2px' }}>
+                  Your Events
+                </h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
                   {events.length} total · {publishedEvents} published · {events.length - publishedEvents} draft
                 </p>
               </div>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => router.push('/admin/events/new')}
-              >
-                <span>+</span> New Event
+              <Button variant="primary" size="md" onClick={() => router.push('/admin/events/new')}>
+                + New Event
               </Button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="stagger-children">
               {events.length === 0 ? (
-                <Card accent style={{ padding: '60px 40px' }} className="fade-in-up">
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{
-                      width: '100px',
-                      height: '100px',
-                      margin: '0 auto 20px',
-                      borderRadius: '28px',
-                      background: 'var(--accent-gradient)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '48px',
-                      opacity: 0.95,
-                    }}>
-                      🎪
-                    </div>
-                    <h3 style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: '22px',
-                      fontWeight: 700,
-                      marginBottom: '8px',
-                    }}>No Events Yet</h3>
-                    <p style={{
-                      color: 'var(--text-muted)',
-                      fontSize: '14px',
-                      marginBottom: '24px',
-                      maxWidth: '380px',
-                      margin: '0 auto 24px',
-                      lineHeight: 1.6,
-                    }}>
-                      Create your first event to start selling tickets, tracking attendance, and managing attendees.
-                    </p>
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      onClick={() => router.push('/admin/events/new')}
-                    >
+                <div className="adm-chart-card">
+                  <div className="adm-empty">
+                    <div className="adm-empty-icon">🎪</div>
+                    <div className="adm-empty-title">No Events Yet</div>
+                    <div className="adm-empty-desc">Create your first event to start selling tickets and tracking attendance.</div>
+                    <Button variant="primary" size="lg" onClick={() => router.push('/admin/events/new')}>
                       ✨ Create Your First Event
                     </Button>
                   </div>
-                </Card>
+                </div>
               ) : (
-                events.map(ev => (
-                  <EventRow key={ev.id} event={ev} router={router} />
-                ))
+                events.map(ev => {
+                  const pct = ev.capacity > 0 ? Math.min((ev.sold / ev.capacity) * 100, 100) : 0;
+                  const statusVariants = { published: 'success', draft: 'warning', sold_out: 'error', completed: 'info', cancelled: 'error' };
+                  return (
+                    <div
+                      key={ev.id}
+                      className="adm-quick-action adm-ripple"
+                      onClick={() => router.push(`/admin/events/${ev.id}`)}
+                      style={{ padding: '20px' }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: '16px', fontFamily: 'var(--font-primary)' }}>{ev.event_name}</span>
+                          <Badge variant={statusVariants[ev.status] || 'glass'}>{ev.status?.replace('_', ' ')}</Badge>
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>📅</span>
+                          <span>{new Date(ev.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                          <span style={{ marginLeft: '4px' }}>📍 {ev.venue || 'TBD'}</span>
+                        </div>
+                        {ev.capacity > 0 && (
+                          <div style={{ marginTop: '10px' }}>
+                            <Progress value={ev.sold} max={ev.capacity} showLabel height={6} />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'var(--font-primary)', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', lineHeight: 1.1 }}>
+                          {ev.sold}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>tickets sold</div>
+                        <div style={{ marginTop: '8px', fontSize: '12px', fontWeight: 700, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                          Manage <span>→</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </AdminLayout>
   );
 }

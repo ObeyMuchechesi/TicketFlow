@@ -1,0 +1,1 @@
+Root of the TicketFlow Next.js application that wires the public landing page shell and shared lib utilities into a single deployable app configured for Vercel with Supabase and Stripe integrations.

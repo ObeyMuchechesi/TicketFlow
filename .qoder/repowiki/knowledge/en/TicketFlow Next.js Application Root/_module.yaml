@@ -1,0 +1,15 @@
+schema_version: 1
+module_path: ""
+title: TicketFlow Next.js Application Root
+scope:
+    - .gitignore
+    - package.json
+    - next.config.js
+    - vercel.json
+    - index.html
+    - package-lock.json
+    - script.js
+    - styles.css
+source_files: []
+depends_on: []
+related_to: []

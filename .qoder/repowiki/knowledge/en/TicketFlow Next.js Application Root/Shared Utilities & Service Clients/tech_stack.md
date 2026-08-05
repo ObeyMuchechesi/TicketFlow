@@ -1,0 +1,1 @@
+bcryptjs for password hashing, @supabase/supabase-js v2 for database/client access, stripe SDK (apiVersion 2023-10-16) for payments, and plain Node Buffer/JSON for session tokens.

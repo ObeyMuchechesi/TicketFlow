@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
-
-const TAB_STYLE = (active) => ({
-  padding: '10px 20px', background: 'transparent', border: 'none',
-  borderBottom: active ? '2px solid #e94560' : '2px solid transparent',
-  color: active ? '#fff' : 'rgba(255,255,255,0.4)', fontWeight: active ? 600 : 400,
-  fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s',
-});
+import { Badge, Button, Progress, Skeleton, Input } from '../../../components/ui';
 
 const STATUS_COLORS = { published: '#10b981', draft: '#f59e0b', sold_out: '#ef4444', completed: '#6b7280', cancelled: '#ef4444' };
+const STATUS_MAP = { published: { variant: 'success', label: 'Live' }, draft: { variant: 'warning', label: 'Draft' }, sold_out: { variant: 'error', label: 'Sold Out' }, completed: { variant: 'info', label: 'Completed' }, cancelled: { variant: 'error', label: 'Cancelled' } };
+const TABS = [
+  { key: 'overview', label: 'Overview', icon: '📋' },
+  { key: 'tickets', label: 'Ticket Types', icon: '🎟️' },
+  { key: 'attendees', label: 'Attendees', icon: '👥' },
+  { key: 'actions', label: 'Actions', icon: '⚡' },
+];
 
 export default function AdminEventDetail() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function AdminEventDetail() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusLoading, setStatusLoading] = useState(false);
+  const [sortField, setSortField] = useState('purchase_date');
+  const [sortDir, setSortDir] = useState('desc');
 
   useEffect(() => {
     if (!id) return;
@@ -38,135 +41,346 @@ export default function AdminEventDetail() {
     setStatusLoading(false);
   }
 
-  if (loading) return <AdminLayout title="Event"><div style={{ padding: '40px', color: 'rgba(255,255,255,0.3)' }}>Loading...</div></AdminLayout>;
-  if (!event) return <AdminLayout title="Event"><div style={{ padding: '40px', color: '#fca5a5' }}>Event not found.</div></AdminLayout>;
+  function exportAttendeesCSV() {
+    const rows = [['Name', 'Email', 'Ticket Type', 'Status', 'Checked In', 'Purchase Date']];
+    attendees.forEach(a => rows.push([a.buyer_name, a.buyer_email, a.ticket_types?.name || '', a.status, a.is_checked_in ? 'Yes' : 'No', new Date(a.purchase_date).toLocaleDateString()]));
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `attendees-${event?.event_name || 'event'}.csv`; a.click();
+  }
+
+  function toggleSort(field) {
+    if (sortField === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
+    else { setSortField(field); setSortDir('asc'); }
+  }
+
+  const sortedAttendees = [...attendees].sort((a, b) => {
+    const va = a[sortField] || '';
+    const vb = b[sortField] || '';
+    const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  if (loading) return <AdminLayout title="Event"><div className="adm-content"><div className="adm-skeleton" style={{ height: '40px', width: '200px', marginBottom: '20px' }} /><div className="adm-skeleton" style={{ height: '300px' }} /></div></AdminLayout>;
+  if (!event) return <AdminLayout title="Event"><div className="adm-content"><div className="adm-chart-card"><div className="adm-empty"><div className="adm-empty-icon">❌</div><div className="adm-empty-title">Event Not Found</div><Button variant="primary" onClick={() => router.push('/admin/events')}>← Back to Events</Button></div></div></div></AdminLayout>;
 
   const sold = (event.ticket_types || []).reduce((s, t) => s + (t.quantity_sold || 0), 0);
   const total = (event.ticket_types || []).reduce((s, t) => s + t.quantity_available, 0);
+  const available = total - sold;
+  const revenue = (event.ticket_types || []).reduce((s, t) => s + ((t.quantity_sold || 0) * t.price), 0);
+  const pctSold = total > 0 ? Math.round((sold / total) * 100) : 0;
+  const sm = STATUS_MAP[event.status] || STATUS_MAP.draft;
+
+  const statCards = [
+    { l: 'Tickets Sold', v: sold, c: 'linear-gradient(135deg, #a855f7, #ec4899)', sub: `${pctSold}% of capacity` },
+    { l: 'Available', v: available, c: 'linear-gradient(135deg, #10b981, #06b6d4)', sub: `${total} total` },
+    { l: 'Revenue', v: `$${revenue.toLocaleString()}`, c: 'linear-gradient(135deg, #d4a853, #f97316)', sub: 'Gross sales' },
+    { l: 'Capacity', v: event.capacity || '∞', c: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', sub: 'Max attendees' },
+  ];
 
   return (
     <AdminLayout title={event.event_name}>
-      <div style={{ padding: 'clamp(20px,3vw,40px)' }}>
-        {/* Header */}
-        <button onClick={() => router.push('/admin/events')} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '14px', cursor: 'pointer', marginBottom: '12px' }}>← All Events</button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-              <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 'clamp(20px,3vw,28px)', fontWeight: 700 }}>{event.event_name}</h1>
-              <span style={{ fontSize: '12px', padding: '3px 12px', borderRadius: '50px', background: `${STATUS_COLORS[event.status]}18`, color: STATUS_COLORS[event.status], fontWeight: 700, textTransform: 'capitalize' }}>{event.status}</span>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>📅 {new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} &nbsp; 📍 {event.venue}</p>
+      {/* Back + Header */}
+      <button onClick={() => router.push('/admin/events')} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: '13px', cursor: 'pointer', marginBottom: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+        ← All Events
+      </button>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }} className="fade-in-up">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+            <h1 style={{ fontFamily: 'var(--font-primary)', fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 800, margin: 0 }}>{event.event_name}</h1>
+            <Badge variant={sm.variant}>{sm.label}</Badge>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" style={{ padding: '9px 16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50px', color: '#fff', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>🔗 View Page</a>
-            <select value={event.status} onChange={e => updateStatus(e.target.value)} disabled={statusLoading} style={{ padding: '9px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50px', color: '#fff', fontSize: '13px', cursor: 'pointer', outline: 'none' }}>
-              {['draft', 'published', 'sold_out', 'completed', 'cancelled'].map(s => <option key={s} value={s} style={{ background: '#1a1a2e' }}>{s}</option>)}
-            </select>
-            <button onClick={() => router.push(`/admin/events/edit/${id}`)} style={{ padding: '9px 16px', background: '#e94560', border: 'none', borderRadius: '50px', color: '#fff', fontSize: '13px', fontWeight: 600 }}>✏️ Edit</button>
+          <div style={{ fontSize: '14px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span>📅 {new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <span>·</span>
+            <span>📍 {event.venue || 'TBD'}</span>
           </div>
         </div>
-
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: '12px', marginBottom: '28px' }}>
-          {[
-            { l: 'Tickets Sold', v: sold, c: '#d4a853' },
-            { l: 'Available', v: total - sold, c: '#10b981' },
-            { l: 'Checked In', v: (event.ticket_types || []).reduce((s, t) => s + (t.quantity_sold || 0), 0), c: '#3b82f6' },
-            { l: 'Capacity', v: event.capacity || '∞', c: '#6b7280' },
-          ].map(s => (
-            <div key={s.l} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px', textAlign: 'center' }}>
-              <div style={{ fontSize: '26px', fontWeight: 800, color: s.c, fontFamily: "'Playfair Display',serif" }}>{s.v}</div>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>{s.l}</div>
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className="adm-export-btn" style={{ textDecoration: 'none' }}>🔗 View Page</a>
+          <select
+            value={event.status}
+            onChange={e => updateStatus(e.target.value)}
+            disabled={statusLoading}
+            style={{ padding: '8px 14px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)', fontSize: '13px', cursor: 'pointer', outline: 'none' }}
+          >
+            {['draft', 'published', 'sold_out', 'completed', 'cancelled'].map(s => (
+              <option key={s} value={s} style={{ background: 'var(--bg-secondary)' }}>{s.replace('_', ' ')}</option>
+            ))}
+          </select>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '24px', display: 'flex', gap: '0' }}>
-          {[['overview', 'Overview'], ['tickets', 'Ticket Types'], ['attendees', 'Attendees']].map(([t, l]) => (
-            <button key={t} style={TAB_STYLE(tab === t)} onClick={() => setTab(t)}>{l}</button>
-          ))}
-        </div>
+      {/* Stats */}
+      <div className="adm-kpi-grid stagger-children" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        {statCards.map(s => (
+          <div key={s.l} className="adm-kpi-card" style={{ '--kpi-accent': s.c }}>
+            <div className="adm-kpi-label">{s.l}</div>
+            <div className="adm-kpi-value adm-count-animate" style={{ background: s.c, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{s.v}</div>
+            <div className="adm-kpi-sub">{s.sub}</div>
+          </div>
+        ))}
+      </div>
 
-        {tab === 'overview' && (
-          <div>
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '24px' }}>
-              {event.poster_image && <img src={event.poster_image} alt="poster" style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', borderRadius: '12px', marginBottom: '20px' }} />}
-              <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '16px' }}>{event.description || 'No description provided.'}</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>
-                <div><strong style={{ color: '#fff' }}>Time:</strong> {event.time || '—'}</div>
-                <div><strong style={{ color: '#fff' }}>Theme Color:</strong> <span style={{ display: 'inline-block', width: '14px', height: '14px', background: event.theme_color, borderRadius: '3px', marginLeft: '6px', verticalAlign: 'middle' }} /></div>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '4px', marginBottom: '24px' }} className="fade-in-up">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            style={{
+              flex: 1, padding: '10px 14px',
+              background: tab === t.key ? 'var(--accent-gradient)' : 'transparent',
+              border: 'none', borderRadius: '8px',
+              color: tab === t.key ? '#fff' : 'var(--text-secondary)',
+              fontWeight: tab === t.key ? 700 : 500, fontSize: '13px',
+              cursor: 'pointer', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            }}
+          >
+            <span>{t.icon}</span> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {tab === 'overview' && (
+        <div className="adm-grid-12 fade-in-up">
+          <div className="adm-col-7">
+            <div className="adm-chart-card">
+              <div className="adm-chart-header">
+                <div className="adm-chart-title">Event Details</div>
+              </div>
+              {event.poster_image && (
+                <img src={event.poster_image} alt="poster" style={{ width: '100%', maxHeight: '280px', objectFit: 'cover', borderRadius: '14px', marginBottom: '20px' }} />
+              )}
+              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '16px', fontSize: '14px' }}>
+                {event.description || 'No description provided.'}
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '14px' }}>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Time:</strong> <span style={{ color: 'var(--text-secondary)' }}>{event.time || '—'}</span></div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Theme:</strong> <span style={{ display: 'inline-block', width: '16px', height: '16px', background: event.theme_color, borderRadius: '4px', marginLeft: '6px', verticalAlign: 'middle' }} /></div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Slug:</strong> <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{event.slug}</span></div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Status:</strong> <Badge variant={sm.variant}>{sm.label}</Badge></div>
               </div>
             </div>
           </div>
-        )}
-
-        {tab === 'tickets' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-              <button onClick={() => router.push(`/admin/events/edit/${id}#tickets`)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50px', padding: '9px 18px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Add Ticket Type</button>
+          <div className="adm-col-5">
+            <div className="adm-chart-card">
+              <div className="adm-chart-header">
+                <div className="adm-chart-title">Sales Progress</div>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Tickets Sold</span>
+                  <span style={{ fontWeight: 700 }}>{sold} / {total}</span>
+                </div>
+                <Progress value={sold} max={total || 1} showLabel height={10} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {(event.ticket_types || []).map(tt => {
+                  const tp = tt.quantity_available > 0 ? Math.min((tt.quantity_sold / tt.quantity_available) * 100, 100) : 0;
+                  return (
+                    <div key={tt.id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-secondary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tt.color }} />
+                        <span style={{ fontSize: '13px', fontWeight: 600 }}>{tt.name}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: '13px', fontWeight: 700, color: tt.color }}>${tt.price}</span>
+                      </div>
+                      <Progress value={tt.quantity_sold || 0} max={tt.quantity_available} height={5} />
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                        {tt.quantity_sold || 0} / {tt.quantity_available} ({Math.round(tp)}%)
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'tickets' && (
+        <div className="fade-in-up">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
+            <h3 style={{ fontFamily: 'var(--font-primary)', fontSize: '16px', fontWeight: 700 }}>Ticket Types</h3>
+            <Badge variant="glass">{(event.ticket_types || []).length} tiers</Badge>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {(event.ticket_types || []).map(tt => {
-              const pct = tt.quantity_available > 0 ? Math.min((tt.quantity_sold / tt.quantity_available) * 100, 100) : 0;
+              const tp = tt.quantity_available > 0 ? Math.min((tt.quantity_sold / tt.quantity_available) * 100, 100) : 0;
+              const rev = (tt.quantity_sold || 0) * tt.price;
               return (
-                <div key={tt.id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${tt.color}30`, borderRadius: '14px', padding: '20px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                  <div style={{ flex: 1, minWidth: '200px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tt.color }} />
-                      <span style={{ fontWeight: 600, fontSize: '16px' }}>{tt.name}</span>
-                      <span style={{ color: tt.color, fontWeight: 700, fontSize: '15px' }}>${tt.price}</span>
+                <div key={tt.id} className="adm-chart-card" style={{ border: `1px solid ${tt.color}30` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: tt.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, color: '#fff' }}>
+                          {tt.name?.charAt(0) || 'T'}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '16px', fontWeight: 700 }}>{tt.name}</div>
+                          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>${tt.price} per ticket</div>
+                        </div>
+                      </div>
+                      <Progress value={tt.quantity_sold || 0} max={tt.quantity_available} showLabel height={8} />
+                      <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '6px' }}>
+                        {tt.quantity_sold || 0} sold / {tt.quantity_available} total ({Math.round(tp)}%)
+                      </div>
                     </div>
-                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: tt.color, borderRadius: '3px' }} />
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-primary)', background: `linear-gradient(135deg, ${tt.color}, #d4a853)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                        ${rev.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>revenue</div>
                     </div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>{tt.quantity_sold || 0} sold / {tt.quantity_available} total ({Math.round(pct)}%)</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#d4a853', fontFamily: "'Playfair Display',serif" }}>
-                      ${((tt.quantity_sold || 0) * tt.price).toLocaleString()}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>revenue</div>
                   </div>
                 </div>
               );
             })}
+            {(!event.ticket_types || event.ticket_types.length === 0) && (
+              <div className="adm-chart-card"><div className="adm-empty"><div className="adm-empty-icon">🎟️</div><div className="adm-empty-title">No Ticket Types</div><div className="adm-empty-desc">Add ticket types to start selling.</div></div></div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {tab === 'attendees' && (
-          <div>
-            <div style={{ marginBottom: '16px' }}>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, phone, or ticket ID..." style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', color: '#fff', fontSize: '14px', outline: 'none' }} />
+      {tab === 'attendees' && (
+        <div className="fade-in-up">
+          <div className="adm-table-wrap">
+            <div className="adm-table-toolbar">
+              <div className="adm-table-search">
+                <span>🔍</span>
+                <input
+                  placeholder="Search by name, email, phone, or ticket ID..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="adm-export-btn" onClick={exportAttendeesCSV}>📥 Export CSV</button>
+                <Badge variant="glass">{attendees.length} attendees</Badge>
+              </div>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <table className="adm-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)', textAlign: 'left' }}>
-                    {['Name', 'Email', 'Ticket Type', 'Status', 'Checked In', 'Date'].map(h => <th key={h} style={{ padding: '10px 12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>)}
+                  <tr>
+                    {[
+                      { key: 'buyer_name', label: 'Name' },
+                      { key: 'buyer_email', label: 'Email' },
+                      { key: null, label: 'Ticket Type' },
+                      { key: 'status', label: 'Status' },
+                      { key: 'is_checked_in', label: 'Checked In' },
+                      { key: 'purchase_date', label: 'Date' },
+                      { key: null, label: 'Actions' },
+                    ].map(h => (
+                      <th key={h.label} onClick={() => h.key && toggleSort(h.key)} style={{ cursor: h.key ? 'pointer' : 'default' }}>
+                        {h.label} {sortField === h.key && (sortDir === 'asc' ? '↑' : '↓')}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {attendees.map(a => (
-                    <tr key={a.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <td style={{ padding: '12px' }}>{a.buyer_name}</td>
-                      <td style={{ padding: '12px', color: 'rgba(255,255,255,0.5)' }}>{a.buyer_email}</td>
-                      <td style={{ padding: '12px' }}><span style={{ background: `${a.ticket_types?.color || '#e94560'}18`, color: a.ticket_types?.color || '#e94560', padding: '2px 8px', borderRadius: '50px', fontSize: '11px', fontWeight: 600 }}>{a.ticket_types?.name}</span></td>
-                      <td style={{ padding: '12px' }}><span style={{ color: a.status === 'active' ? '#10b981' : a.status === 'used' ? '#f59e0b' : '#ef4444' }}>{a.status}</span></td>
-                      <td style={{ padding: '12px' }}>{a.is_checked_in ? <span style={{ color: '#10b981' }}>✓ {a.checked_in_at ? new Date(a.checked_in_at).toLocaleTimeString() : ''}</span> : <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>}</td>
-                      <td style={{ padding: '12px', color: 'rgba(255,255,255,0.4)' }}>{new Date(a.purchase_date).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                  {attendees.length === 0 && (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)' }}>No attendees found</td></tr>
+                  {sortedAttendees.length === 0 ? (
+                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>
+                      <div style={{ fontSize: '36px', marginBottom: '8px' }}>👥</div>
+                      <div style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>No attendees found</div>
+                    </td></tr>
+                  ) : (
+                    sortedAttendees.map(a => (
+                      <tr key={a.id}>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                              {a.buyer_name?.charAt(0) || '?'}
+                            </div>
+                            {a.buyer_name}
+                          </div>
+                        </td>
+                        <td>{a.buyer_email}</td>
+                        <td>
+                          <Badge variant="primary" style={{ background: `${a.ticket_types?.color || '#8b5cf6'}20`, color: a.ticket_types?.color || '#8b5cf6' }}>
+                            {a.ticket_types?.name || 'Ticket'}
+                          </Badge>
+                        </td>
+                        <td>
+                          <span className={`adm-status-dot ${a.status === 'active' ? 'success' : a.status === 'used' ? 'warning' : 'error'}`}>
+                            {a.status}
+                          </span>
+                        </td>
+                        <td>
+                          {a.is_checked_in ? (
+                            <span style={{ color: 'var(--success)', fontWeight: 600 }}>
+                              ✓ {a.checked_in_at ? new Date(a.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                        </td>
+                        <td style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>
+                          {new Date(a.purchase_date).toLocaleDateString()}
+                        </td>
+                        <td>
+                          <div className="adm-table-row-actions">
+                            <button className="adm-table-row-action" title="View ticket" onClick={() => router.push(`/ticket/${a.qr_code_token}`)}>🔗</button>
+                            <button className="adm-table-row-action" title="Email">✉️</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {tab === 'actions' && (
+        <div className="adm-grid-12 fade-in-up">
+          <div className="adm-col-6">
+            <div className="adm-chart-card">
+              <div className="adm-chart-title" style={{ marginBottom: '16px' }}>Event Actions</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[
+                  { icon: '📋', label: 'Duplicate Event', desc: 'Create a copy of this event', action: () => {} },
+                  { icon: '⏸️', label: 'Pause Sales', desc: 'Temporarily stop ticket sales', action: () => updateStatus('draft') },
+                  { icon: '▶️', label: 'Resume Sales', desc: 'Reopen ticket purchasing', action: () => updateStatus('published') },
+                  { icon: '🔄', label: 'Issue Refund', desc: 'Process a customer refund', action: () => {} },
+                  { icon: '📧', label: 'Email Attendees', desc: 'Send a message to all buyers', action: () => {} },
+                  { icon: '🗄️', label: 'Archive Event', desc: 'Move to archived events', action: () => updateStatus('completed') },
+                ].map((a, i) => (
+                  <div key={i} className="adm-quick-action adm-ripple" onClick={a.action}>
+                    <div className="adm-quick-action-icon" style={{ background: 'var(--bg-glass-light)', fontSize: '20px' }}>{a.icon}</div>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{a.label}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{a.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="adm-col-6">
+            <div className="adm-chart-card">
+              <div className="adm-chart-title" style={{ marginBottom: '16px' }}>Danger Zone</div>
+              <div style={{ padding: '20px', borderRadius: '14px', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.04)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#fca5a5', marginBottom: '4px' }}>Cancel Event</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '14px' }}>
+                  This will cancel the event and stop all sales. Attendees will be notified.
+                </div>
+                <button
+                  onClick={() => { if (confirm('Are you sure you want to cancel this event?')) updateStatus('cancelled'); }}
+                  style={{ padding: '10px 20px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', color: '#fca5a5', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                >
+                  🚫 Cancel This Event
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

@@ -1,0 +1,3 @@
+- Server-side configuration and environment setup live at the root (next.config.js, vercel.json) rather than inside child modules.
+- External service clients (Supabase, Stripe) are instantiated as singletons in lib and imported directly by consumers instead of re-instantiating per request.
+- API route security headers are centralized in vercel.json under the /api/* source pattern.

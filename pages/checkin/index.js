@@ -15,45 +15,95 @@ export default function CheckinHome() {
     <>
       <Head>
         <title>Gate Staff — TiketFlow</title>
-        <style>{`*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#0a0a0a;color:#fff}`}</style>
       </Head>
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0a0a0a 0%,#0d1117 100%)', padding: '24px' }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <div style={{ marginBottom: '32px' }}>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '24px', fontWeight: 700, background: 'linear-gradient(120deg,#e94560,#d4a853)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '4px' }}>TiketFlow</div>
-            <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>Gate Staff Panel</h1>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '15px' }}>Select an event to start checking in attendees</p>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary, #0a0a0f)', color: 'var(--text-primary, #fff)' }}>
+        <div style={{ maxWidth: '640px', margin: '0 auto', padding: 'clamp(20px, 3vw, 40px)' }}>
+          {/* Header */}
+          <div style={{ marginBottom: '32px' }} className="fade-in-up">
+            <div style={{
+              fontFamily: 'var(--font-primary, Plus Jakarta Sans)',
+              fontSize: '22px', fontWeight: 800,
+              background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+              marginBottom: '4px',
+            }}>TiketFlow</div>
+            <h1 style={{ fontFamily: 'var(--font-primary)', fontSize: '28px', fontWeight: 800, marginBottom: '6px' }}>Gate Staff Panel</h1>
+            <p style={{ color: 'var(--text-secondary, rgba(255,255,255,0.4))', fontSize: '14px' }}>
+              Select an event to start checking in attendees
+            </p>
           </div>
 
+          {/* Stats */}
+          {!loading && events.length > 0 && (
+            <div className="adm-kpi-grid" style={{ marginBottom: '24px', gridTemplateColumns: '1fr 1fr' }}>
+              <div className="adm-kpi-card" style={{ '--kpi-accent': 'linear-gradient(135deg, #10b981, #06b6d4)' }}>
+                <div className="adm-kpi-label">Available Events</div>
+                <div className="adm-kpi-value" style={{ background: 'linear-gradient(135deg, #10b981, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                  {events.filter(e => e.status === 'published').length || events.length}
+                </div>
+              </div>
+              <div className="adm-kpi-card" style={{ '--kpi-accent': 'linear-gradient(135deg, #a855f7, #ec4899)' }}>
+                <div className="adm-kpi-label">Today</div>
+                <div className="adm-kpi-value" style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(255,255,255,0.3)' }}>Loading events...</div>
+            <div className="stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="adm-chart-card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div className="adm-skeleton" style={{ width: '48px', height: '48px', borderRadius: '14px' }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="adm-skeleton" style={{ width: '70%', height: '18px', marginBottom: '6px' }} />
+                    <div className="adm-skeleton" style={{ width: '50%', height: '13px' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : events.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(255,255,255,0.3)' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
-              <p>No published events available.</p>
+            <div className="adm-chart-card fade-in-up">
+              <div className="adm-empty">
+                <div className="adm-empty-icon">📋</div>
+                <div className="adm-empty-title">No Events Available</div>
+                <div className="adm-empty-desc">No published events to check in for. Contact the event organizer.</div>
+              </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {events.map(ev => (
-                <div key={ev.id} onClick={() => router.push(`/checkin/${ev.id}`)}
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '20px 24px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#e94560'; e.currentTarget.style.background = 'rgba(233,69,96,0.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '17px', marginBottom: '4px' }}>{ev.event_name}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="stagger-children">
+              {events.map((ev, i) => (
+                <div
+                  key={ev.id}
+                  className="adm-quick-action adm-ripple"
+                  onClick={() => router.push(`/checkin/${ev.id}`)}
+                  style={{ padding: '20px 24px' }}
+                >
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '14px',
+                    background: `linear-gradient(135deg, ${['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#e94560'][i % 5]}, ${['#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', '#f97316'][i % 5]})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '20px', flexShrink: 0,
+                  }}>🎪</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>{ev.event_name}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary, rgba(255,255,255,0.4))' }}>
                       📅 {new Date(ev.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       {ev.venue && ` · 📍 ${ev.venue.split(',')[0]}`}
                     </div>
                   </div>
-                  <div style={{ color: '#e94560', fontWeight: 700, fontSize: '20px' }}>→</div>
+                  <div style={{ color: 'var(--accent-primary, #8b5cf6)', fontWeight: 700, fontSize: '20px', flexShrink: 0 }}>→</div>
                 </div>
               ))}
             </div>
           )}
 
           <div style={{ marginTop: '40px', textAlign: 'center' }}>
-            <a href="/admin/login" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '13px', textDecoration: 'none' }}>Admin Login →</a>
+            <a href="/admin/login" style={{ color: 'var(--text-tertiary, rgba(255,255,255,0.25))', fontSize: '13px', textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => e.target.style.color = 'var(--text-primary, #fff)'}
+              onMouseLeave={e => e.target.style.color = 'var(--text-tertiary, rgba(255,255,255,0.25)'}
+            >Admin Login →</a>
           </div>
         </div>
       </div>

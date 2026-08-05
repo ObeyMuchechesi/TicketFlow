@@ -1,0 +1,1 @@
+npm run dev starts the Next.js development server, npm run build produces the production bundle, and npm start runs the built server — all configured identically in package.json and mirrored in vercel.json's buildCommand/devCommand/installCommand fields.

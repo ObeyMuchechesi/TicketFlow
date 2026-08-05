@@ -1,0 +1,47 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: master
+nodes_managed: true
+exported_at: "2026-08-05T11:32:47Z"
+modules:
+    "":
+        dir_name: TicketFlow Next.js Application Root
+        title: TicketFlow Next.js Application Root
+        scope:
+            - .gitignore
+            - package.json
+            - next.config.js
+            - vercel.json
+            - index.html
+            - package-lock.json
+            - script.js
+            - styles.css
+        source_files: []
+        children:
+            - lib
+            - pages_public
+        depends_on: []
+        related_to: []
+    lib:
+        dir_name: Shared Utilities & Service Clients
+        title: Shared Utilities & Service Clients
+        scope:
+            - lib/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: pages_public
+    pages_public:
+        dir_name: Public Landing Page & Next.js App Shell
+        title: Public Landing Page & Next.js App Shell
+        scope:
+            - pages/index.js
+            - pages/_app.js
+            - pages/_document.js
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: lib

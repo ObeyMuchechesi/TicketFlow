@@ -1,23 +1,47 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-const NAV = [
-  { href: '/admin', label: 'Overview', icon: '📊' },
+const NAV_MAIN = [
+  { href: '/admin', label: 'Dashboard', icon: '📊' },
   { href: '/admin/events', label: 'Events', icon: '🎪' },
-  { href: '/admin/staff', label: 'Gate Staff', icon: '👮' },
+  { href: '/admin/events/new', label: 'Create Event', icon: '✨' },
+];
+
+const NAV_MANAGE = [
+  { href: '/admin/staff', label: 'Staff', icon: '👥' },
   { href: '/admin/promo-codes', label: 'Promo Codes', icon: '🏷️' },
   { href: '/admin/reports', label: 'Reports', icon: '📈' },
+];
+
+const NAV_TOOLS = [
+  { href: '/checkin', label: 'Gate Scanner', icon: '📷' },
+  { href: '/', label: 'View Site', icon: '🌐', external: true },
+];
+
+const CMD_ITEMS = [
+  ...NAV_MAIN,
+  ...NAV_MANAGE,
+  ...NAV_TOOLS,
+  { href: '/admin/events/new', label: 'New Event', icon: '🎪' },
+  { href: '/admin/reports', label: 'Export CSV', icon: '📥' },
+  { href: '/admin/staff', label: 'Add Staff Member', icon: '👤' },
+  { href: '/admin/promo-codes', label: 'Create Promo Code', icon: '🎟️' },
 ];
 
 export default function AdminLayout({ children, title = 'Admin' }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQuery, setCmdQuery] = useState('');
+  const [cmdIdx, setCmdIdx] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const cmdInputRef = useRef(null);
 
   useEffect(() => {
     fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((d) => {
+      .then(r => r.json())
+      .then(d => {
         if (!d.user || !['super_admin', 'organiser'].includes(d.user.role)) {
           router.push('/admin/login');
         } else {
@@ -27,9 +51,56 @@ export default function AdminLayout({ children, title = 'Admin' }) {
       .catch(() => router.push('/admin/login'));
   }, []);
 
+  const handleKey = useCallback((e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      setCmdOpen(o => !o);
+      setCmdQuery('');
+      setCmdIdx(0);
+    }
+    if (e.key === 'Escape') {
+      setCmdOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [handleKey]);
+
+  useEffect(() => {
+    if (cmdOpen) cmdInputRef.current?.focus();
+  }, [cmdOpen]);
+
+  const filteredCmds = CMD_ITEMS.filter(i =>
+    i.label.toLowerCase().includes(cmdQuery.toLowerCase())
+  );
+
+  function cmdNavigate(href) {
+    setCmdOpen(false);
+    router.push(href);
+  }
+
+  function cmdKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setCmdIdx(i => Math.min(i + 1, filteredCmds.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCmdIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && filteredCmds[cmdIdx]) {
+      cmdNavigate(filteredCmds[cmdIdx].href);
+    }
+  }
+
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/admin/login');
+  }
+
+  function isNavActive(href) {
+    if (href === '/admin') return router.pathname === '/admin';
+    return router.pathname.startsWith(href);
   }
 
   return (
@@ -37,156 +108,225 @@ export default function AdminLayout({ children, title = 'Admin' }) {
       <Head>
         <title>{title} — TiketFlow Admin</title>
       </Head>
-      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+      <div className="adm-shell">
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300 }}
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside style={{
-          width: '260px',
-          flexShrink: 0,
-          background: 'rgba(255, 255, 255, 0.01)',
-          borderRight: '1px solid var(--border)',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          overflowY: 'auto',
-        }}>
-          {/* Logo Brand area */}
-          <div style={{ padding: '24px 24px 20px', borderBottom: '1px solid var(--border)' }}>
+        <aside className={`adm-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div className="adm-sidebar-brand">
             <span
               onClick={() => router.push('/')}
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '22px',
-                fontWeight: 800,
-                background: 'var(--accent-gradient)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                cursor: 'pointer',
-                letterSpacing: '-0.03em',
-                display: 'block'
-              }}
+              className="adm-sidebar-brand-name"
+              style={{ cursor: 'pointer', display: 'block' }}
             >
               TiketFlow
             </span>
-            <div style={{
-              fontSize: '10px',
-              color: 'var(--text-dimmed)',
-              marginTop: '4px',
-              textTransform: 'uppercase',
-              letterSpacing: '1.5px',
-              fontWeight: 600
-            }}>
-              Organiser Center
-            </div>
+            <div className="adm-sidebar-brand-sub">Organiser Center</div>
           </div>
 
-          {/* Navigation Links */}
-          <nav style={{ flex: 1, padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {NAV.map((item) => {
-              const active = router.pathname === item.href || (item.href !== '/admin' && router.pathname.startsWith(item.href));
-              return (
+          <nav className="adm-nav">
+            <div className="adm-nav-section">Main</div>
+            {NAV_MAIN.map(item => (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`adm-nav-link ${isNavActive(item.href) ? 'active' : ''}`}
+              >
+                <span className="adm-nav-icon">{item.icon}</span>
+                {item.label}
+              </a>
+            ))}
+
+            <div className="adm-nav-section" style={{ marginTop: '8px' }}>Management</div>
+            {NAV_MANAGE.map(item => (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`adm-nav-link ${isNavActive(item.href) ? 'active' : ''}`}
+              >
+                <span className="adm-nav-icon">{item.icon}</span>
+                {item.label}
+              </a>
+            ))}
+
+            <div className="adm-nav-section" style={{ marginTop: '8px' }}>Tools</div>
+            {NAV_TOOLS.map(item => (
+              item.external ? (
                 <a
                   key={item.href}
                   href={item.href}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-btn)',
-                    background: active ? 'var(--accent-muted)' : 'transparent',
-                    color: active ? 'var(--accent)' : 'var(--text-muted)',
-                    fontSize: '14px',
-                    fontWeight: active ? 600 : 500,
-                    textDecoration: 'none',
-                    transition: 'all 0.2s',
-                    border: '1px solid',
-                    borderColor: active ? 'rgba(168, 85, 247, 0.15)' : 'transparent',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.color = 'var(--text)';
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.color = 'var(--text-muted)';
-                      e.currentTarget.style.background = 'transparent';
-                    }
-                  }}
+                  className="adm-nav-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  <span style={{ fontSize: '16px' }}>{item.icon}</span>
+                  <span className="adm-nav-icon">{item.icon}</span>
                   {item.label}
                 </a>
-              );
-            })}
+              ) : (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className={`adm-nav-link ${isNavActive(item.href) ? 'active' : ''}`}
+                >
+                  <span className="adm-nav-icon">{item.icon}</span>
+                  {item.label}
+                </a>
+              )
+            ))}
           </nav>
 
-          {/* User info and Logout action */}
-          <div style={{ padding: '20px 16px', borderTop: '1px solid var(--border)', background: 'rgba(255,255,255,0.005)' }}>
+          <div className="adm-sidebar-footer">
             {user && (
-              <div style={{ marginBottom: '16px', paddingLeft: '8px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{user.full_name}</div>
-                <div style={{
-                  fontSize: '11px',
-                  color: 'var(--text-dimmed)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  marginTop: '2px'
-                }}>
-                  {user.role.replace('_', ' ')}
+              <div className="adm-user-card">
+                <div className="adm-user-avatar">
+                  {user.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user.full_name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {user.role?.replace('_', ' ')}
+                  </div>
                 </div>
               </div>
             )}
             <button
               onClick={handleLogout}
-              className="premium-btn"
+              className="adm-nav-link"
               style={{
-                width: '100%',
-                padding: '10px',
-                background: 'rgba(239, 68, 68, 0.08)',
-                border: '1px solid rgba(239, 68, 68, 0.15)',
                 color: '#fca5a5',
-                fontSize: '13px',
-                fontWeight: 600,
-                borderRadius: '8px'
-              }}
-              onMouseEnter={e => {
-                e.target.style.background = 'rgba(239, 68, 68, 0.15)';
-                e.target.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-              }}
-              onMouseLeave={e => {
-                e.target.style.background = 'rgba(239, 68, 68, 0.08)';
-                e.target.style.borderColor = 'rgba(239, 68, 68, 0.15)';
+                background: 'rgba(239, 68, 68, 0.06)',
+                border: '1px solid rgba(239, 68, 68, 0.12)',
+                width: '100%',
               }}
             >
+              <span className="adm-nav-icon">🚪</span>
               Sign Out
             </button>
             <a
               href="/"
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                marginTop: '12px',
-                fontSize: '12px',
-                color: 'var(--text-dimmed)',
-                textDecoration: 'none',
-                transition: 'color 0.2s'
-              }}
-              onMouseEnter={e => e.target.style.color = 'var(--text)'}
-              onMouseLeave={e => e.target.style.color = 'var(--text-dimmed)'}
+              className="adm-nav-link"
+              style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-tertiary)' }}
             >
-              ← Back to main site
+              <span className="adm-nav-icon">←</span>
+              Back to site
             </a>
           </div>
         </aside>
 
-        {/* Admin Content Area */}
-        <main style={{ flex: 1, minWidth: 0, padding: '40px', overflowX: 'hidden' }}>
-          {children}
+        {/* Main content */}
+        <main className="adm-main">
+          {/* Topbar */}
+          <div className="adm-topbar">
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              className="adm-topbar-btn"
+              style={{ display: 'none' }}
+              id="adm-menu-toggle"
+            >
+              ☰
+            </button>
+            <style>{`@media(max-width:1024px){#adm-menu-toggle{display:flex!important}}`}</style>
+
+            <div
+              className="adm-topbar-search"
+              onClick={() => { setCmdOpen(true); setCmdQuery(''); setCmdIdx(0); }}
+            >
+              <span>🔍</span>
+              <span>Search or type a command...</span>
+              <kbd>⌘K</kbd>
+            </div>
+
+            <div className="adm-topbar-actions">
+              <button className="adm-topbar-btn" title="Notifications" onClick={() => router.push('/admin/reports')}>
+                🔔
+                <span className="notif-dot" />
+              </button>
+              <button
+                className="adm-topbar-btn"
+                title="Create Event"
+                onClick={() => router.push('/admin/events/new')}
+              >
+                ✨
+              </button>
+              <button
+                className="adm-topbar-btn"
+                title="Toggle Theme"
+                onClick={() => {
+                  const html = document.documentElement;
+                  const current = html.getAttribute('data-theme');
+                  const themes = ['dark-concert', 'midnight-blue', 'royal-purple', 'emerald', 'elegant-white'];
+                  const idx = themes.indexOf(current);
+                  const next = themes[(idx + 1) % themes.length];
+                  html.setAttribute('data-theme', next);
+                  try { localStorage.setItem('tf-theme', next); } catch {}
+                }}
+              >
+                🎨
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="adm-content">
+            {children}
+          </div>
         </main>
+
+        {/* Command Palette */}
+        {cmdOpen && (
+          <div className="adm-cmd-overlay" onClick={() => setCmdOpen(false)}>
+            <div className="adm-cmd-modal" onClick={e => e.stopPropagation()}>
+              <input
+                ref={cmdInputRef}
+                className="adm-cmd-input"
+                placeholder="Type a command or search..."
+                value={cmdQuery}
+                onChange={e => { setCmdQuery(e.target.value); setCmdIdx(0); }}
+                onKeyDown={cmdKeyDown}
+              />
+              <div className="adm-cmd-results">
+                {filteredCmds.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                    No results found
+                  </div>
+                ) : (
+                  filteredCmds.map((item, i) => (
+                    <div
+                      key={item.href + item.label}
+                      className={`adm-cmd-item ${i === cmdIdx ? 'selected' : ''}`}
+                      onClick={() => cmdNavigate(item.href)}
+                      onMouseEnter={() => setCmdIdx(i)}
+                    >
+                      <span className="cmd-icon">{item.icon}</span>
+                      <span>{item.label}</span>
+                      <span className="cmd-shortcut">↵</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div style={{
+                padding: '10px 16px',
+                borderTop: '1px solid var(--border-primary)',
+                display: 'flex',
+                gap: '16px',
+                fontSize: '11px',
+                color: 'var(--text-tertiary)',
+              }}>
+                <span>↑↓ Navigate</span>
+                <span>↵ Select</span>
+                <span>Esc Close</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

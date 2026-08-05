@@ -1,0 +1,1 @@
+Next.js 15 with React 19, deployed on Vercel; Supabase for data/auth, Stripe for payments, bcryptjs for password hashing, resend for email, qrcode.react for ticket QR codes, and uuid for identifiers.

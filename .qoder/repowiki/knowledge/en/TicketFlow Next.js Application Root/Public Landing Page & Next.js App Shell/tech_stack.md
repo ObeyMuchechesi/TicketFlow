@@ -1,0 +1,1 @@
+Next.js pages router with server-side rendering via `getServerSideProps`; Supabase client (`@supabase/supabase-js`) for fetching published events; React hooks (`useState`, `useEffect`, `useMemo`) for client state; CSS variables and utility classes defined in `styles/global.css` for theming.
