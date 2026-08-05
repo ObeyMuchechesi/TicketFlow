@@ -250,8 +250,9 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
 
   const steps = [
     { label: 'Tickets', key: 'select' },
-    { label: 'Billing', key: 'form' },
-    { label: 'Confirm', key: 'confirm' }
+    { label: 'Details', key: 'details' },
+    { label: 'Payment', key: 'payment' },
+    { label: 'Confirmed', key: 'confirm' }
   ];
   const currentStepIdx = steps.findIndex(s => s.key === step);
 
@@ -863,199 +864,201 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       </div>
 
                       <Button
-                        onClick={() => setStep('form')}
+                        onClick={() => setStep('details')}
                         className="premium-btn-primary pulse-glow fade-in-up"
                         style={{ width: '100%', padding: '16px', fontSize: '15px', marginTop: '4px' }}
                       >
-                        Continue to Checkout →
+                        Continue →
                       </Button>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* STEP: FORM */}
-              {step === 'form' && (
-                <div key="step-form" className="fade-in-up">
-                  <form onSubmit={handlePurchase} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <h3 style={{ fontSize: '17px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-display)' }}>
-                      Checkout Details
-                    </h3>
+              {/* STEP: DETAILS - Customer Info */}
+              {step === 'details' && (
+                <div key="step-details" className="fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-display)' }}>
+                    Your Details
+                  </h3>
 
-                    {/* Buyer Information */}
-                    <div>
-                      <h4 style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>1. Contact Info</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <input
-                          type="text" required placeholder="Your Full Name"
-                          value={buyerForm.name}
-                          onChange={e => setBuyerForm({ ...buyerForm, name: e.target.value })}
-                          className="premium-input" style={{ padding: '12px 16px', fontSize: '14px', borderRadius: '12px' }}
-                        />
-                        <input
-                          type="email" required placeholder="Your Email Address"
-                          value={buyerForm.email}
-                          onChange={e => setBuyerForm({ ...buyerForm, email: e.target.value })}
-                          className="premium-input" style={{ padding: '12px 16px', fontSize: '14px', borderRadius: '12px' }}
-                        />
-                        <input
-                          type="tel" required placeholder="Phone Number (+263...)"
-                          value={buyerForm.phone}
-                          onChange={e => setBuyerForm({ ...buyerForm, phone: e.target.value })}
-                          className="premium-input" style={{ padding: '12px 16px', fontSize: '14px', borderRadius: '12px' }}
-                        />
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Contact Info</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <input
+                        type="text" required placeholder="Full Name"
+                        value={buyerForm.name}
+                        onChange={e => setBuyerForm({ ...buyerForm, name: e.target.value })}
+                        className="premium-input" style={{ padding: '12px 16px', fontSize: '14px', borderRadius: '12px' }}
+                      />
+                      <input
+                        type="email" required placeholder="Email Address"
+                        value={buyerForm.email}
+                        onChange={e => setBuyerForm({ ...buyerForm, email: e.target.value })}
+                        className="premium-input" style={{ padding: '12px 16px', fontSize: '14px', borderRadius: '12px' }}
+                      />
+                      <input
+                        type="tel" required placeholder="Phone (+263...)"
+                        value={buyerForm.phone}
+                        onChange={e => setBuyerForm({ ...buyerForm, phone: e.target.value })}
+                        className="premium-input" style={{ padding: '12px 16px', fontSize: '14px', borderRadius: '12px' }}
+                      />
+                    </div>
+                  </div>
+
+                  {qty > 1 && (
+                    <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Attendee Passes</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto' }} className="no-scrollbar">
+                        {attendeeList.map((att, idx) => (
+                          <div key={idx} className="glass" style={{ padding: '12px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: accent, marginBottom: '8px' }}>Attendee #{idx + 1}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <input
+                                type="text" required placeholder="Attendee Name"
+                                value={att.name}
+                                onChange={e => { const next = [...attendeeList]; next[idx].name = e.target.value; setAttendeeList(next); }}
+                                className="premium-input" style={{ padding: '10px 12px', fontSize: '13px', borderRadius: '10px' }}
+                              />
+                              <input
+                                type="email" placeholder="Email (Optional)"
+                                value={att.email}
+                                onChange={e => { const next = [...attendeeList]; next[idx].email = e.target.value; setAttendeeList(next); }}
+                                className="premium-input" style={{ padding: '10px 12px', fontSize: '13px', borderRadius: '10px' }}
+                              />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
+                  )}
 
-                    {/* Multiple Attendee Forms */}
-                    {qty > 1 && (
-                      <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '16px' }}>
-                        <h4 style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>2. Attendee Passes</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }} className="no-scrollbar">
-                          {attendeeList.map((att, idx) => (
-                            <div key={idx} className="glass" style={{ padding: '12px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                              <div style={{ fontSize: '11px', fontWeight: 700, color: accent, marginBottom: '8px' }}>Attendee #{idx + 1}</div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <input
-                                  type="text" required placeholder="Attendee Name"
-                                  value={att.name}
-                                  onChange={e => {
-                                    const next = [...attendeeList];
-                                    next[idx].name = e.target.value;
-                                    setAttendeeList(next);
-                                  }}
-                                  className="premium-input" style={{ padding: '10px 12px', fontSize: '13px', borderRadius: '10px' }}
-                                />
-                                <input
-                                  type="email" placeholder="Attendee Email (Optional)"
-                                  value={att.email}
-                                  onChange={e => {
-                                    const next = [...attendeeList];
-                                    next[idx].email = e.target.value;
-                                    setAttendeeList(next);
-                                  }}
-                                  className="premium-input" style={{ padding: '10px 12px', fontSize: '13px', borderRadius: '10px' }}
-                                />
-                              </div>
-                            </div>
-                          ))}
+                  {/* Gift ticket toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: 'var(--panel-bg)', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
+                    <span style={{ fontSize: '18px' }}>🎁</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>Gift this ticket</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-dimmed)' }}>Send directly to someone special</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <Button type="button" onClick={() => setStep('select')} className="premium-btn-secondary" style={{ flex: 1, padding: '14px', fontSize: '13px' }}>
+                      ← Back
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!buyerForm.name || !buyerForm.email) {
+                          setError('Please fill in your name and email');
+                          return;
+                        }
+                        setStep('payment');
+                      }}
+                      className="premium-btn-primary" style={{ flex: 2, padding: '14px', fontSize: '14px' }}
+                    >
+                      Continue to Payment →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP: PAYMENT */}
+              {step === 'payment' && (
+                <div key="step-payment" className="fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-display)' }}>
+                    Payment
+                  </h3>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Payment Method</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                      <button
+                        type="button" onClick={() => setPayMethod('stripe')}
+                        style={{
+                          padding: '14px', borderRadius: '12px',
+                          background: payMethod === 'stripe' ? `${accent}22` : 'var(--panel-bg)',
+                          border: `2px solid ${payMethod === 'stripe' ? accent : 'var(--panel-border)'}`,
+                          color: 'var(--text)', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                          transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                        }}
+                      >💳 Card</button>
+                      <button
+                        type="button" onClick={() => setPayMethod('ecocash')}
+                        style={{
+                          padding: '14px', borderRadius: '12px',
+                          background: payMethod === 'ecocash' ? `${accent}22` : 'var(--panel-bg)',
+                          border: `2px solid ${payMethod === 'ecocash' ? accent : 'var(--panel-border)'}`,
+                          color: 'var(--text)', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                          transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                        }}
+                      >📱 EcoCash</button>
+                    </div>
+
+                    {payMethod === 'stripe' && (
+                      <div className="glass" style={{ padding: '14px', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <input type="text" required placeholder="Card Number (4000 1234 ...)" value={simulatedCard.number}
+                          onChange={e => setSimulatedCard({ ...simulatedCard, number: e.target.value.replace(/[^0-9\s]/g, '') })}
+                          className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px' }} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <input type="text" required placeholder="MM/YY" value={simulatedCard.expiry}
+                            onChange={e => setSimulatedCard({ ...simulatedCard, expiry: e.target.value })}
+                            className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }} />
+                          <input type="text" required placeholder="CVC" value={simulatedCard.cvc}
+                            onChange={e => setSimulatedCard({ ...simulatedCard, cvc: e.target.value.slice(0, 4) })}
+                            className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }} />
                         </div>
                       </div>
                     )}
 
-                    {/* Payment choice */}
-                    <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '16px' }}>
-                      <h4 style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>3. Payment Method</h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setPayMethod('stripe')}
-                          style={{
-                            padding: '14px', borderRadius: '12px',
-                            background: payMethod === 'stripe' ? `${accent}22` : 'var(--panel-bg)',
-                            border: `2px solid ${payMethod === 'stripe' ? accent : 'var(--panel-border)'}`,
-                            color: 'var(--text)',
-                            fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-                            transition: 'all 0.2s', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center', gap: '6px'
-                          }}
-                        >
-                          💳 Card
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPayMethod('ecocash')}
-                          style={{
-                            padding: '14px', borderRadius: '12px',
-                            background: payMethod === 'ecocash' ? `${accent}22` : 'var(--panel-bg)',
-                            border: `2px solid ${payMethod === 'ecocash' ? accent : 'var(--panel-border)'}`,
-                            color: 'var(--text)',
-                            fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-                            transition: 'all 0.2s', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center', gap: '6px'
-                          }}
-                        >
-                          📱 EcoCash
-                        </button>
+                    {payMethod === 'ecocash' && (
+                      <div className="glass" style={{ padding: '14px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                        <input type="text" required placeholder="EcoCash Number (e.g. 077123456)" value={simulatedEcocash}
+                          onChange={e => setSimulatedEcocash(e.target.value.replace(/[^0-9]/g, ''))}
+                          className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }} />
+                        <div style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '8px', textAlign: 'center' }}>
+                          A prompt will be sent to your phone to enter your PIN.
+                        </div>
                       </div>
+                    )}
+                  </div>
 
-                      {payMethod === 'stripe' && (
-                        <div className="glass" style={{ padding: '14px', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <input
-                            type="text" required placeholder="Card Number (4000 1234 ...)"
-                            value={simulatedCard.number}
-                            onChange={e => setSimulatedCard({ ...simulatedCard, number: e.target.value.replace(/[^0-9\s]/g, '') })}
-                            className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px' }}
-                          />
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                            <input
-                              type="text" required placeholder="MM/YY"
-                              value={simulatedCard.expiry}
-                              onChange={e => setSimulatedCard({ ...simulatedCard, expiry: e.target.value })}
-                              className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }}
-                            />
-                            <input
-                              type="text" required placeholder="CVC"
-                              value={simulatedCard.cvc}
-                              onChange={e => setSimulatedCard({ ...simulatedCard, cvc: e.target.value.slice(0, 4) })}
-                              className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {payMethod === 'ecocash' && (
-                        <div className="glass" style={{ padding: '14px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                          <input
-                            type="text" required placeholder="EcoCash Number (e.g. 077123456)"
-                            value={simulatedEcocash}
-                            onChange={e => setSimulatedEcocash(e.target.value.replace(/[^0-9]/g, ''))}
-                            className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }}
-                          />
-                          <div style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '8px', textAlign: 'center' }}>
-                            A prompt will be sent to your phone to enter your PIN.
-                          </div>
-                        </div>
-                      )}
+                  {/* Order Summary */}
+                  <div style={{ borderTop: '2px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: '4px' }}>Order Summary</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                      <span>{qty} × {selectedTicket?.name}</span><span>${baseTotal.toFixed(2)}</span>
                     </div>
-
-                    {/* Summary */}
+                    {discountAmt > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981' }}>
+                        <span>Promo ({discount}%)</span><span>−${discountAmt.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                      <span>Platform Fee</span><span>${serviceFee.toFixed(2)}</span>
+                    </div>
                     <div style={{
-                      borderTop: '2px solid var(--border)', paddingTop: '16px',
                       display: 'flex', justifyContent: 'space-between',
-                      alignItems: 'center', fontSize: '13px', color: 'var(--text-muted)'
+                      fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-display)',
+                      borderTop: '2px solid var(--border)', paddingTop: '14px', marginTop: '4px'
                     }}>
-                      <div>
-                        <div>Subtotal: ${baseTotal.toFixed(2)}</div>
-                        {discountAmt > 0 && <div style={{ color: '#10b981' }}>Disc: −${discountAmt.toFixed(2)}</div>}
-                        <div>Fee: ${serviceFee.toFixed(2)}</div>
-                      </div>
-                      <div style={{
-                        fontSize: '24px', fontWeight: 800,
-                        fontFamily: 'var(--font-display)',
-                        background: gradientAccent,
-                        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                      }}>${total.toFixed(2)}</div>
+                      <span>Total</span>
+                      <span style={{ background: gradientAccent, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>${total.toFixed(2)}</span>
                     </div>
+                  </div>
 
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <Button
-                        type="button"
-                        onClick={() => setStep('select')}
-                        className="premium-btn-secondary"
-                        style={{ flex: 1, padding: '14px', fontSize: '13px' }}
-                      >
-                        ← Back
-                      </Button>
-                      <Button
-                        type="submit" disabled={loading}
-                        className="premium-btn-primary pulse-glow"
-                        style={{ flex: 2, padding: '14px', fontSize: '14px', background: gradientAccent }}
-                      >
-                        {loading ? '⏳ Processing...' : `Pay $${total.toFixed(2)}`}
-                      </Button>
-                    </div>
-                  </form>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <Button type="button" onClick={() => setStep('details')} className="premium-btn-secondary" style={{ flex: 1, padding: '14px', fontSize: '13px' }}>
+                      ← Back
+                    </Button>
+                    <Button
+                      onClick={(e) => handlePurchase(e)}
+                      disabled={loading}
+                      className="premium-btn-primary pulse-glow"
+                      style={{ flex: 2, padding: '14px', fontSize: '14px', background: gradientAccent }}
+                    >
+                      {loading ? '⏳ Processing...' : `Pay $${total.toFixed(2)}`}
+                    </Button>
+                  </div>
                 </div>
               )}
 

@@ -67,8 +67,8 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
 
             <ul className="tf-nav-links">
               <li><a href="/#events-grid">Events</a></li>
-              <li><a href="/#categories">Categories</a></li>
-              <li><a href="/admin">Dashboard</a></li>
+              <li><a href="/dashboard">My Tickets</a></li>
+              <li><a href="/admin">Admin</a></li>
               <li><a href="/checkin">Check-In</a></li>
             </ul>
 

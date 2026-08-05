@@ -1,26 +1,20 @@
 export default function StepIndicator({ steps = [], currentStep = 0 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', width: '100%', gap: '0' }}>
+    <div className="tf-stepper">
       {steps.map((step, i) => {
         const state = i < currentStep ? 'done' : i === currentStep ? 'active' : '';
         return (
           <div
             key={i}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              flex: i === steps.length - 1 ? 'none' : 1,
-              minWidth: 0,
-            }}
-            className={`step-${state}`}
+            className={`tf-stepper-step ${state}`}
           >
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-              <div className="step-dot">
+              <div className="tf-stepper-dot">
                 {state === 'done' ? '✓' : i + 1}
               </div>
-              {step && <div className="step-label">{step}</div>}
+              {step && <div className="tf-stepper-label">{step}</div>}
             </div>
-            {i < steps.length - 1 && <div className="step-line" />}
+            {i < steps.length - 1 && <div className="tf-stepper-line" />}
           </div>
         );
       })}

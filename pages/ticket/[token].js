@@ -1,96 +1,227 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useRouter } from 'next/router';
+import { useState } from 'react';
 import Layout from '../../components/Layout';
 
 export default function TicketPage({ ticket, event, ticketType, error: serverError }) {
   const router = useRouter();
-  const { token } = router.query;
+  const [copied, setCopied] = useState(null);
 
   if (serverError || !ticket) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ textAlign: 'center', maxWidth: '400px' }}>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>❌</div>
-          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '28px', marginBottom: '12px' }}>Ticket Not Found</h2>
-          <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '28px' }}>This ticket may be invalid, cancelled, or the link may have expired.</p>
-          <button onClick={() => router.push('/')} style={{ background: '#e94560', color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '50px', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>Back to Events</button>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div className="tf-empty-state">
+          <div className="tf-empty-state-icon">❌</div>
+          <h3 className="tf-empty-state-title">Ticket Not Found</h3>
+          <p className="tf-empty-state-desc">This ticket may be invalid, cancelled, or the link may have expired.</p>
+          <button className="tf-btn tf-btn-primary" style={{ marginTop: '24px' }} onClick={() => router.push('/')}>
+            Back to Events
+          </button>
         </div>
       </div>
     );
   }
 
-  const accent = event?.theme_color || '#e94560';
+  const accent = event?.theme_color || '#a855f7';
   const ticketColor = ticketType?.color || accent;
   const qrValue = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app'}/ticket/${ticket.qr_code_token}`;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app';
 
   function formatDate(d) {
     try { return new Date(d).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
     catch { return d; }
   }
 
+  function formatDateShort(d) {
+    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch { return d; }
+  }
+
+  const handleCopy = (text, label) => {
+    navigator.clipboard.writeText(text);
+    setCopied(label);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const ticketUrl = `${siteUrl}/ticket/${ticket.qr_code_token}`;
+  const shareText = encodeURIComponent(`I have a ticket for ${event?.event_name}! View it here:`);
+  const whatsappUrl = `https://wa.me/?text=${shareText}%20${encodeURIComponent(ticketUrl)}`;
+  const emailSubject = encodeURIComponent(`My Ticket: ${event?.event_name}`);
+  const emailBody = encodeURIComponent(`View my ticket at: ${ticketUrl}`);
+  const emailUrl = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+
+  const isUsed = ticket.status === 'used';
+  const isActive = ticket.status === 'active';
+
+  // Generate barcode-like lines
+  const barcodeLines = Array.from({ length: 40 }, (_, i) => {
+    const hash = (ticket.qr_code_token.charCodeAt(i % ticket.qr_code_token.length) * (i + 1)) % 3;
+    return hash === 0 ? 1 : hash === 1 ? 2 : 3;
+  });
+
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0a0a0a 0%,#1a1a2e 55%,#16213e 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ width: '100%', maxWidth: '400px' }}>
-        {/* Ticket card */}
-        <div style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${ticketColor}40`, borderRadius: '24px', overflow: 'hidden', boxShadow: `0 0 60px ${ticketColor}20` }}>
-          {/* Header */}
-          <div style={{ background: `linear-gradient(135deg, ${ticketColor}22, ${ticketColor}08)`, borderBottom: `1px solid ${ticketColor}20`, padding: '28px 28px 20px', textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '22px', fontWeight: 700, background: 'linear-gradient(120deg,#e94560,#d4a853)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '4px' }}>TiketFlow</div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 'clamp(18px,4vw,22px)', fontWeight: 700, lineHeight: 1.3 }}>{event?.event_name}</h2>
-            <div style={{ marginTop: '10px', display: 'inline-block', background: `${ticketColor}20`, border: `1px solid ${ticketColor}60`, color: ticketColor, padding: '4px 16px', borderRadius: '50px', fontSize: '13px', fontWeight: 700 }}>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 20px',
+      position: 'relative',
+    }}>
+      {/* Background gradient */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: -1,
+        background: `radial-gradient(ellipse 80% 60% at 50% 30%, ${ticketColor}15, transparent)`,
+      }} />
+
+      <div style={{ width: '100%', maxWidth: '420px' }}>
+        {/* ═══════ TICKET CARD ═══════ */}
+        <div className="tf-ticket animate-scale-in" style={{ borderColor: `${ticketColor}40`, boxShadow: `0 20px 60px -20px ${ticketColor}30, var(--shadow-xl)` }}>
+
+          {/* Header with gradient */}
+          <div className="tf-ticket-header" style={{ borderBottom: `1px solid ${ticketColor}20` }}>
+            <div className="tf-ticket-brand">TiketFlow</div>
+            <h2 className="tf-ticket-event">{event?.event_name}</h2>
+            <div className="tf-ticket-type" style={{
+              background: `${ticketColor}15`,
+              borderColor: `${ticketColor}40`,
+              color: ticketColor,
+            }}>
               {ticketType?.name || 'General Admission'}
             </div>
           </div>
 
-          {/* QR Code */}
-          <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{
-              background: '#fff',
-              borderRadius: '16px',
-              padding: '16px',
-              marginBottom: '20px',
-              boxShadow: ticket.status === 'used' ? 'none' : `0 0 30px ${ticketColor}30`,
-              opacity: ticket.status === 'used' ? 0.4 : 1,
-              position: 'relative',
-            }}>
-              <QRCodeSVG value={qrValue} size={200} level="H" includeMargin={false} fgColor="#0a0a0a" />
-              {ticket.status === 'used' && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', borderRadius: '16px' }}>
-                  <span style={{ color: '#ef4444', fontWeight: 900, fontSize: '24px', border: '3px solid #ef4444', padding: '6px 12px', borderRadius: '8px', transform: 'rotate(-15deg)', letterSpacing: '2px' }}>USED</span>
+          {/* Tear perforation */}
+          <div className="tf-ticket-tear">
+            <div className="tf-ticket-tear-line" />
+          </div>
+
+          {/* QR Code Section */}
+          <div className="tf-ticket-body">
+            <div className={`tf-ticket-qr ${isUsed ? 'used' : ''}`} style={{ boxShadow: isUsed ? 'none' : `0 0 30px ${ticketColor}20` }}>
+              <QRCodeSVG
+                value={qrValue}
+                size={180}
+                level="H"
+                includeMargin={false}
+                fgColor="#0a0a0a"
+              />
+              {isUsed && (
+                <div className="tf-ticket-qr-overlay">
+                  <span className="tf-ticket-qr-stamp">USED</span>
                 </div>
               )}
             </div>
 
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '24px' }}>
+            <div className="tf-ticket-token">
               {ticket.qr_code_token.slice(0, 8).toUpperCase()}...{ticket.qr_code_token.slice(-4).toUpperCase()}
-            </p>
+            </div>
 
-            {/* Details */}
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '20px' }}>
+            {/* Barcode */}
+            <div className="tf-ticket-barcode">
+              {barcodeLines.map((w, i) => (
+                <div key={i} className="tf-ticket-barcode-line" style={{ flex: w }} />
+              ))}
+            </div>
+
+            {/* Ticket Details */}
+            <div className="tf-ticket-details">
               {[
                 { label: 'Ticket Holder', value: ticket.buyer_name },
                 { label: 'Date', value: formatDate(event?.date) },
                 { label: 'Time', value: event?.time },
                 { label: 'Venue', value: event?.venue },
-                { label: 'Status', value: ticket.status === 'used' ? '✓ Checked In' : ticket.status === 'active' ? '✅ Valid' : ticket.status, color: ticket.status === 'active' ? '#10b981' : ticket.status === 'used' ? '#f59e0b' : '#ef4444' },
+                { label: 'Price', value: ticketType?.price != null ? `$${ticketType.price}` : null },
+                {
+                  label: 'Status',
+                  value: isUsed ? '✓ Checked In' : isActive ? '✅ Valid' : ticket.status,
+                  color: isActive ? 'var(--success)' : isUsed ? 'var(--warning)' : 'var(--error)',
+                },
               ].filter(r => r.value).map(row => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>{row.label}</span>
-                  <span style={{ fontSize: '14px', fontWeight: 500, textAlign: 'right', color: row.color || '#fff' }}>{row.value}</span>
+                <div key={row.label} className="tf-ticket-row">
+                  <span className="tf-ticket-row-label">{row.label}</span>
+                  <span className="tf-ticket-row-value" style={row.color ? { color: row.color } : {}}>
+                    {row.value}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Footer strip */}
-          <div style={{ background: `${ticketColor}15`, borderTop: `1px dashed ${ticketColor}30`, padding: '14px 28px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '11px', letterSpacing: '1px' }}>
-            SHOW THIS QR CODE AT THE GATE
+          {/* Footer */}
+          <div className="tf-ticket-footer">
+            Show this QR code at the gate
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button onClick={() => window.print()} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', padding: '10px 24px', borderRadius: '50px', fontSize: '14px', cursor: 'pointer', marginRight: '10px' }}>🖨️ Print</button>
-          <button onClick={() => router.push('/')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', padding: '10px 24px', borderRadius: '50px', fontSize: '14px', cursor: 'pointer' }}>← Home</button>
+        {/* ═══════ WALLET & SHARE BUTTONS ═══════ */}
+        <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }} className="stagger-children">
+
+          {/* Wallet passes */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <button
+              className="tf-wallet-card tf-wallet-apple animate-fade-in-up"
+              onClick={() => alert('Apple Wallet integration requires native app support')}
+            >
+              <span style={{ fontSize: '1.2rem' }}></span>
+              Apple Wallet
+            </button>
+            <button
+              className="tf-wallet-card tf-wallet-google animate-fade-in-up"
+              style={{ animationDelay: '0.05s' }}
+              onClick={() => alert('Google Wallet integration requires native app support')}
+            >
+              <span style={{ fontSize: '1.2rem' }}>G</span>
+              Google Wallet
+            </button>
+          </div>
+
+          {/* Share buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tf-wallet-card tf-wallet-whatsapp animate-fade-in-up"
+              style={{ animationDelay: '0.1s' }}
+            >
+              💬 WhatsApp
+            </a>
+            <a
+              href={emailUrl}
+              className="tf-wallet-card tf-wallet-email animate-fade-in-up"
+              style={{ animationDelay: '0.15s' }}
+            >
+              ✉️ Email
+            </a>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+            <button
+              className="tf-btn tf-btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => handleCopy(ticketUrl, 'link')}
+            >
+              {copied === 'link' ? '✓ Copied!' : '🔗 Copy Link'}
+            </button>
+            <button
+              className="tf-btn tf-btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => window.print()}
+            >
+              🖨️ Print
+            </button>
+          </div>
+
+          <button
+            className="tf-btn tf-btn-ghost"
+            style={{ width: '100%', marginTop: '4px' }}
+            onClick={() => router.push('/')}
+          >
+            ← Back to Events
+          </button>
         </div>
       </div>
     </div>
