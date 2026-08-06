@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { Ticket, Globe, LogOut, CalendarDays, MapPin, CalendarRange, QrCode, ClipboardList } from 'lucide-react';
 
 const EVENT_GRADIENTS = [
   'linear-gradient(135deg, #a855f7, #ec4899)',
@@ -79,8 +80,7 @@ export default function StaffDashboard() {
               width: '38px', height: '38px', borderRadius: '12px',
               background: 'linear-gradient(135deg, #10b981, #2563eb, #ec4899)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '18px',
-            }}>🎟️</div>
+            }}><Ticket size={20} strokeWidth={2.25} style={{ color: '#fff' }} /></div>
             <div>
               <div style={{ fontFamily: 'var(--font-primary)', fontWeight: 800, fontSize: '16px', lineHeight: 1.2 }}>
                 TiketFlow <span style={{ color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '13px' }}>· Gate Staff</span>
@@ -101,7 +101,7 @@ export default function StaffDashboard() {
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >🌐 View Site</a>
+            ><Globe size={14} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '5px' }} />View Site</a>
             <button
               onClick={handleLogout}
               style={{
@@ -114,7 +114,7 @@ export default function StaffDashboard() {
               }}
               onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; e.currentTarget.style.color = '#dc2626'; }}
-            >🚪 Sign Out</button>
+            ><LogOut size={14} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Sign Out</button>
           </div>
         </header>
 
@@ -166,9 +166,8 @@ export default function StaffDashboard() {
                 </div>
               ))
             ) : events.length === 0 ? (
-              <div className="adm-chart-card fade-in-up">
-                <div className="adm-empty">
-                  <div className="adm-empty-icon">📋</div>
+              <div className="adm-chart-card fade-in-up">                  <div className="adm-empty">
+                  <div className="adm-empty-icon"><ClipboardList size={32} strokeWidth={1.75} /></div>
                   <div className="adm-empty-title">No Events Available</div>
                   <div className="adm-empty-desc">No published events to check in for yet. Contact the event organiser.</div>
                 </div>
@@ -185,13 +184,13 @@ export default function StaffDashboard() {
                     width: '48px', height: '48px', borderRadius: '14px',
                     background: EVENT_GRADIENTS[i % EVENT_GRADIENTS.length],
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '20px', flexShrink: 0,
-                  }}>🎪</div>
+                    flexShrink: 0,
+                  }}><CalendarRange size={20} strokeWidth={2} style={{ color: '#fff' }} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>{ev.event_name}</div>
                     <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      📅 {new Date(ev.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      {ev.venue && ` · 📍 ${ev.venue.split(',')[0]}`}
+                      <CalendarDays size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{new Date(ev.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {ev.venue && <> · <MapPin size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '3px' }} />{ev.venue.split(',')[0]}</>}
                     </div>
                   </div>
                   <div style={{ color: 'var(--accent-primary, #7c3aed)', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>

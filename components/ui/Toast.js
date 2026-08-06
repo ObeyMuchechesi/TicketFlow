@@ -1,6 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react';
 
 const ToastContext = createContext(null);
+
+const VARIANT_ICONS = {
+  success: <CheckCircle2 size={18} strokeWidth={2.4} />,
+  error: <XCircle size={18} strokeWidth={2.4} />,
+  warning: <AlertTriangle size={18} strokeWidth={2.4} />,
+  info: <Info size={18} strokeWidth={2.4} />,
+};
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -50,12 +58,7 @@ export function ToastProvider({ children }) {
           >
             {t.icon !== null && (
               <div className="toast-icon">
-                {t.icon ?? ({
-                  success: '✅',
-                  error: '❌',
-                  warning: '⚠️',
-                  info: 'ℹ️',
-                }[t.variant])}
+                {t.icon ?? VARIANT_ICONS[t.variant]}
               </div>
             )}
             <div className="toast-content">

@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
+import {
+  Ticket, Heart, ClipboardList, Wallet, Bell, User, CalendarDays, MapPin, Clock,
+  CheckCircle2, Link2, Check, ArrowUpRight, Info, AlertTriangle,
+} from 'lucide-react';
 import { Badge, Button, Skeleton } from '../components/ui';
 
 const MOCK_TICKETS = [
@@ -70,11 +74,11 @@ export default function Dashboard() {
   };
 
   const tabs = [
-    { id: 'tickets', label: 'My Tickets', icon: '🎟️' },
-    { id: 'favourites', label: 'Favourites', icon: '❤️' },
-    { id: 'history', label: 'Purchase History', icon: '📋' },
-    { id: 'refunds', label: 'Refunds', icon: '💰' },
-    { id: 'notifications', label: `Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`, icon: '🔔' },
+    { id: 'tickets', label: 'My Tickets', icon: Ticket },
+    { id: 'favourites', label: 'Favourites', icon: Heart },
+    { id: 'history', label: 'Purchase History', icon: ClipboardList },
+    { id: 'refunds', label: 'Refunds', icon: Wallet },
+    { id: 'notifications', label: `Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`, icon: Bell },
   ];
 
   return (
@@ -87,7 +91,7 @@ export default function Dashboard() {
       }}>
         <div className="tf-bg-mesh" />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <Badge variant="primary" style={{ marginBottom: '16px' }}>👤 My Account</Badge>
+          <Badge variant="primary" style={{ marginBottom: '16px' }}><User size={12} style={{ verticalAlign: '-2px', marginRight: '4px' }} />My Account</Badge>
           <h1 style={{
             fontSize: 'clamp(28px, 5vw, 42px)',
             fontWeight: 800,
@@ -112,7 +116,7 @@ export default function Dashboard() {
               className={`tf-dash-tab ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
-              {tab.icon} {tab.label}
+              <tab.icon size={15} style={{ verticalAlign: '-2px' }} /> {tab.label}
             </button>
           ))}
         </div>
@@ -135,11 +139,11 @@ export default function Dashboard() {
                     <div className="tf-dash-ticket-body">
                       <div className="tf-dash-ticket-event">{ticket.event_name}</div>
                       <div className="tf-dash-ticket-meta">
-                        <span>📅 {formatDate(ticket.date)} • 🕐 {ticket.time}</span>
-                        <span>📍 {ticket.venue}</span>
+                        <span><CalendarDays size={12} style={{ verticalAlign: '-2px' }} /> {formatDate(ticket.date)} • <Clock size={12} style={{ verticalAlign: '-2px' }} /> {ticket.time}</span>
+                        <span><MapPin size={12} style={{ verticalAlign: '-2px' }} /> {ticket.venue}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Badge variant={ticket.status === 'active' ? 'success' : 'warning'} style={{ fontSize: '10px' }}>
-                            {ticket.status === 'active' ? '✅ Valid' : '✓ Used'}
+                            {ticket.status === 'active' ? 'Valid' : 'Used'}
                           </Badge>
                           <span style={{ color: 'var(--text-tertiary)' }}>{ticket.ticket_type} • ${ticket.price}</span>
                         </span>
@@ -157,14 +161,14 @@ export default function Dashboard() {
                           variant="secondary"
                           onClick={() => handleCopy(ticket.token)}
                         >
-                          {copied === ticket.token ? '✓ Copied' : '🔗 Share'}
+                          {copied === ticket.token ? (<><Check size={14} /> Copied</>) : (<><Link2 size={14} /> Share</>)}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => alert('Transfer feature coming soon!')}
                         >
-                          ↗️ Transfer
+                          <ArrowUpRight size={14} /> Transfer
                         </Button>
                       </div>
                     </div>
@@ -182,10 +186,10 @@ export default function Dashboard() {
                     <div className="tf-dash-ticket-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div className="tf-dash-ticket-event">{ticket.event_name}</div>
-                        <span style={{ fontSize: '1.2rem' }}>❤️</span>
+                        <Heart size={22} fill="currentColor" color="#f43f5e" />
                       </div>
                       <div className="tf-dash-ticket-meta">
-                        <span>📅 {formatDate(ticket.date)} • 📍 {ticket.venue}</span>
+                        <span><CalendarDays size={12} style={{ verticalAlign: '-2px' }} /> {formatDate(ticket.date)} • <MapPin size={12} style={{ verticalAlign: '-2px' }} /> {ticket.venue}</span>
                         <span style={{ color: ticket.theme_color, fontWeight: 600 }}>From ${ticket.price}</span>
                       </div>
                       <Button size="sm" variant="primary" onClick={(e) => { e.stopPropagation(); router.push(`/events/harare-summer-fest`); }}>
@@ -211,7 +215,7 @@ export default function Dashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>${order.total.toFixed(2)}</div>
                       <Badge variant={order.status === 'completed' ? 'success' : 'warning'}>
-                        {order.status === 'completed' ? '✓ Completed' : '↩ Refunded'}
+                        {order.status === 'completed' ? 'Completed' : 'Refunded'}
                       </Badge>
                     </div>
                   </div>
@@ -222,7 +226,7 @@ export default function Dashboard() {
             {/* ═══ REFUNDS ═══ */}
             {activeTab === 'refunds' && (
               <div className="tf-empty-state animate-fade-in-up">
-                <div className="tf-empty-state-icon">💰</div>
+                <div className="tf-empty-state-icon"><Wallet size={36} /></div>
                 <h3 className="tf-empty-state-title">No Refund Requests</h3>
                 <p className="tf-empty-state-desc">
                   If you need a refund for an event, you can request one from your purchase history.
@@ -260,7 +264,7 @@ export default function Dashboard() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '1.1rem', flexShrink: 0,
                     }}>
-                      {notif.type === 'success' ? '✅' : notif.type === 'warning' ? '⚠️' : 'ℹ️'}
+                      {notif.type === 'success' ? <CheckCircle2 size={20} /> : notif.type === 'warning' ? <AlertTriangle size={20} /> : <Info size={20} />}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px' }}>{notif.title}</div>

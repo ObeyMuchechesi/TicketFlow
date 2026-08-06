@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
 import { Badge, Button, Progress, Skeleton, Input } from '../../../components/ui';
+import { ClipboardList, Ticket, Users, Zap, AlertCircle, CalendarDays, MapPin, ExternalLink, Search, Copy, PauseCircle, PlayCircle, RefreshCw, Mail, Archive, Download } from 'lucide-react';
 
 const STATUS_COLORS = { published: '#10b981', draft: '#f59e0b', sold_out: '#ef4444', completed: '#6b7280', cancelled: '#ef4444' };
 const STATUS_MAP = { published: { variant: 'success', label: 'Live' }, draft: { variant: 'warning', label: 'Draft' }, sold_out: { variant: 'error', label: 'Sold Out' }, completed: { variant: 'info', label: 'Completed' }, cancelled: { variant: 'error', label: 'Cancelled' } };
 const TABS = [
-  { key: 'overview', label: 'Overview', icon: '📋' },
-  { key: 'tickets', label: 'Ticket Types', icon: '🎟️' },
-  { key: 'attendees', label: 'Attendees', icon: '👥' },
-  { key: 'actions', label: 'Actions', icon: '⚡' },
+  { key: 'overview', label: 'Overview', icon: ClipboardList },
+  { key: 'tickets', label: 'Ticket Types', icon: Ticket },
+  { key: 'attendees', label: 'Attendees', icon: Users },
+  { key: 'actions', label: 'Actions', icon: Zap },
 ];
 
 export default function AdminEventDetail() {
@@ -63,7 +64,7 @@ export default function AdminEventDetail() {
   });
 
   if (loading) return <AdminLayout title="Event"><div className="adm-content"><div className="adm-skeleton" style={{ height: '40px', width: '200px', marginBottom: '20px' }} /><div className="adm-skeleton" style={{ height: '300px' }} /></div></AdminLayout>;
-  if (!event) return <AdminLayout title="Event"><div className="adm-content"><div className="adm-chart-card"><div className="adm-empty"><div className="adm-empty-icon">❌</div><div className="adm-empty-title">Event Not Found</div><Button variant="primary" onClick={() => router.push('/admin/events')}>← Back to Events</Button></div></div></div></AdminLayout>;
+  if (!event) return <AdminLayout title="Event"><div className="adm-content"><div className="adm-chart-card"><div className="adm-empty"><div className="adm-empty-icon"><AlertCircle size={34} strokeWidth={1.75} /></div><div className="adm-empty-title">Event Not Found</div><Button variant="primary" onClick={() => router.push('/admin/events')}>← Back to Events</Button></div></div></div></AdminLayout>;
 
   const sold = (event.ticket_types || []).reduce((s, t) => s + (t.quantity_sold || 0), 0);
   const total = (event.ticket_types || []).reduce((s, t) => s + t.quantity_available, 0);
@@ -92,16 +93,16 @@ export default function AdminEventDetail() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
             <h1 style={{ fontFamily: 'var(--font-primary)', fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 800, margin: 0 }}>{event.event_name}</h1>
             <Badge variant={sm.variant}>{sm.label}</Badge>
-            {isFree && <Badge variant="success">🎉 Free Event</Badge>}
+            {isFree && <Badge variant="success">Free Event</Badge>}
           </div>
           <div style={{ fontSize: '14px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span>📅 {new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <span><CalendarDays size={14} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             <span>·</span>
-            <span>📍 {event.venue || 'TBD'}</span>
+            <span><MapPin size={14} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{event.venue || 'TBD'}</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className="adm-export-btn" style={{ textDecoration: 'none' }}>🔗 View Page</a>
+          <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className="adm-export-btn" style={{ textDecoration: 'none' }}><ExternalLink size={14} strokeWidth={2} /> View Page</a>
           <select
             value={event.status}
             onChange={e => updateStatus(e.target.value)}
@@ -142,7 +143,7 @@ export default function AdminEventDetail() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
             }}
           >
-            <span>{t.icon}</span> {t.label}
+            <t.icon size={15} strokeWidth={2} /> {t.label}
           </button>
         ))}
       </div>
@@ -247,7 +248,7 @@ export default function AdminEventDetail() {
               );
             })}
             {(!event.ticket_types || event.ticket_types.length === 0) && (
-              <div className="adm-chart-card"><div className="adm-empty"><div className="adm-empty-icon">🎟️</div><div className="adm-empty-title">No Ticket Types</div><div className="adm-empty-desc">Add ticket types to start selling.</div></div></div>
+              <div className="adm-chart-card"><div className="adm-empty"><div className="adm-empty-icon"><Ticket size={32} strokeWidth={1.75} /></div><div className="adm-empty-title">No Ticket Types</div><div className="adm-empty-desc">Add ticket types to start selling.</div></div></div>
             )}
           </div>
         </div>
@@ -258,7 +259,7 @@ export default function AdminEventDetail() {
           <div className="adm-table-wrap">
             <div className="adm-table-toolbar">
               <div className="adm-table-search">
-                <span>🔍</span>
+                <Search size={15} strokeWidth={2} />
                 <input
                   placeholder="Search by name, email, phone, or ticket ID..."
                   value={search}
@@ -266,7 +267,7 @@ export default function AdminEventDetail() {
                 />
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="adm-export-btn" onClick={exportAttendeesCSV}>📥 Export CSV</button>
+                <button className="adm-export-btn" onClick={exportAttendeesCSV}><Download size={14} style={{ verticalAlign: '-2px' }} /> Export CSV</button>
                 <Badge variant="glass">{attendees.length} attendees</Badge>
               </div>
             </div>
@@ -292,7 +293,7 @@ export default function AdminEventDetail() {
                 <tbody>
                   {sortedAttendees.length === 0 ? (
                     <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>
-                      <div style={{ fontSize: '36px', marginBottom: '8px' }}>👥</div>
+                      <Users size={34} strokeWidth={1.5} style={{ marginBottom: '8px', opacity: 0.6 }} />
                       <div style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>No attendees found</div>
                     </td></tr>
                   ) : (
@@ -329,8 +330,8 @@ export default function AdminEventDetail() {
                         </td>
                         <td>
                           <div className="adm-table-row-actions">
-                            <button className="adm-table-row-action" title="View ticket" onClick={() => router.push(`/ticket/${a.qr_code_token}`)}>🔗</button>
-                            <button className="adm-table-row-action" title="Email">✉️</button>
+                            <button className="adm-table-row-action" title="View ticket" onClick={() => router.push(`/ticket/${a.qr_code_token}`)}><ExternalLink size={14} strokeWidth={2} /></button>
+                            <button className="adm-table-row-action" title="Email"><Mail size={14} strokeWidth={2} /></button>
                           </div>
                         </td>
                       </tr>
@@ -350,15 +351,15 @@ export default function AdminEventDetail() {
               <div className="adm-chart-title" style={{ marginBottom: '16px' }}>Event Actions</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {[
-                  { icon: '📋', label: 'Duplicate Event', desc: 'Create a copy of this event', action: () => {} },
-                  { icon: '⏸️', label: 'Pause Sales', desc: 'Temporarily stop ticket sales', action: () => updateStatus('draft') },
-                  { icon: '▶️', label: 'Resume Sales', desc: 'Reopen ticket purchasing', action: () => updateStatus('published') },
-                  { icon: '🔄', label: 'Issue Refund', desc: 'Process a customer refund', action: () => {} },
-                  { icon: '📧', label: 'Email Attendees', desc: 'Send a message to all buyers', action: () => {} },
-                  { icon: '🗄️', label: 'Archive Event', desc: 'Move to archived events', action: () => updateStatus('completed') },
+                  { icon: Copy, label: 'Duplicate Event', desc: 'Create a copy of this event', action: () => {} },
+                  { icon: PauseCircle, label: 'Pause Sales', desc: 'Temporarily stop ticket sales', action: () => updateStatus('draft') },
+                  { icon: PlayCircle, label: 'Resume Sales', desc: 'Reopen ticket purchasing', action: () => updateStatus('published') },
+                  { icon: RefreshCw, label: 'Issue Refund', desc: 'Process a customer refund', action: () => {} },
+                  { icon: Mail, label: 'Email Attendees', desc: 'Send a message to all buyers', action: () => {} },
+                  { icon: Archive, label: 'Archive Event', desc: 'Move to archived events', action: () => updateStatus('completed') },
                 ].map((a, i) => (
                   <div key={i} className="adm-quick-action adm-ripple" onClick={a.action}>
-                    <div className="adm-quick-action-icon" style={{ background: 'var(--bg-glass-light)', fontSize: '20px' }}>{a.icon}</div>
+                    <div className="adm-quick-action-icon" style={{ background: 'var(--bg-glass-light)' }}><a.icon size={18} strokeWidth={2} /></div>
                     <div>
                       <div style={{ fontSize: '14px', fontWeight: 600 }}>{a.label}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{a.desc}</div>

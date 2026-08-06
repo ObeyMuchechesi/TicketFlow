@@ -2,24 +2,30 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { Badge, Button, Card, Progress, CountdownTimer } from '../components/ui';
+import {
+  Ticket, Music, PartyPopper, Church, Briefcase, UtensilsCrossed, GraduationCap, Mic, Trophy,
+  Star, Sparkles, BarChart3, Award, MessageSquare, HelpCircle, Mail, Zap, Search, Flame,
+  Heart, Share2, Check, CupSoda, Wifi, Beer, Landmark, CheckCircle2, Users,
+  MapPin, CalendarDays, Clock, Tent,
+} from 'lucide-react';
 
 const CATEGORIES = [
-  { id: 'all', label: 'All Events', icon: '🎟️' },
-  { id: 'Music', label: 'Music', icon: '🎵' },
-  { id: 'Festival', label: 'Festival', icon: '🎪' },
-  { id: 'Church', label: 'Church', icon: '⛪' },
-  { id: 'Corporate', label: 'Corporate', icon: '💼' },
-  { id: 'Dinner', label: 'Dinner', icon: '🍽️' },
-  { id: 'Graduation', label: 'Graduation', icon: '🎓' },
-  { id: 'Comedy', label: 'Comedy', icon: '🎙️' },
-  { id: 'Sports', label: 'Sports', icon: '🏆' },
+  { id: 'all', label: 'All Events', icon: Ticket },
+  { id: 'Music', label: 'Music', icon: Music },
+  { id: 'Festival', label: 'Festival', icon: PartyPopper },
+  { id: 'Church', label: 'Church', icon: Church },
+  { id: 'Corporate', label: 'Corporate', icon: Briefcase },
+  { id: 'Dinner', label: 'Dinner', icon: UtensilsCrossed },
+  { id: 'Graduation', label: 'Graduation', icon: GraduationCap },
+  { id: 'Comedy', label: 'Comedy', icon: Mic },
+  { id: 'Sports', label: 'Sports', icon: Trophy },
 ];
 
 const SPONSORS = [
-  { name: 'Delta Corp', tagline: 'Premium Beverages', icon: '🥤', color: '#c41e3a' },
-  { name: 'Econet Wireless', tagline: 'Stay Connected', icon: '📶', color: '#00a859' },
-  { name: 'Castle Lager', tagline: 'Official Beer Partner', icon: '🍺', color: '#003da5' },
-  { name: 'NMB Bank', tagline: 'Financial Partner', icon: '🏦', color: '#2d5016' },
+  { name: 'Delta Corp', tagline: 'Premium Beverages', icon: CupSoda, color: '#c41e3a' },
+  { name: 'Econet Wireless', tagline: 'Stay Connected', icon: Wifi, color: '#00a859' },
+  { name: 'Castle Lager', tagline: 'Official Beer Partner', icon: Beer, color: '#003da5' },
+  { name: 'NMB Bank', tagline: 'Financial Partner', icon: Landmark, color: '#2d5016' },
 ];
 
 const TESTIMONIALS = [
@@ -260,7 +266,7 @@ export default function Home({ events: serverEvents }) {
           {/* Search Box */}
           <div className="animate-fade-in-up" style={{ animationDelay: '0.3s', maxWidth: '640px', margin: '0 auto 24px' }}>
             <div className="tf-search">
-              <span className="tf-search-icon">🔍</span>
+              <span className="tf-search-icon"><Search size={17} strokeWidth={2} /></span>
               <input
                 type="text"
                 className="tf-input tf-input-lg"
@@ -310,8 +316,8 @@ export default function Home({ events: serverEvents }) {
                 width: '56px', height: '56px', borderRadius: 'var(--radius-md)',
                 background: `linear-gradient(135deg, ${nextEvent.theme_color || '#a855f7'}, ${nextEvent.theme_color || '#a855f7'}88)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '24px', flexShrink: 0,
-              }}>⚡</div>
+                flexShrink: 0,
+              }}><Zap size={24} strokeWidth={2} style={{ color: '#fff' }} /></div>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: '4px' }}>
                   Next Up • Starts in
@@ -322,7 +328,7 @@ export default function Home({ events: serverEvents }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '2px' }}>{nextEvent.event_name}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>📍 {nextEvent.venue} • 📅 {formatDate(nextEvent.date)}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}><MapPin size={12} style={{ verticalAlign: '-2px' }} /> {nextEvent.venue} • <CalendarDays size={12} style={{ verticalAlign: '-2px' }} /> {formatDate(nextEvent.date)}</div>
               </div>
               <button className="tf-btn tf-btn-primary" onClick={(e) => { e.stopPropagation(); router.push(`/events/${nextEvent.slug}`); }}>
                 Get Tickets →
@@ -345,7 +351,7 @@ export default function Home({ events: serverEvents }) {
                 style={active ? { borderColor: 'var(--accent-primary)', background: 'var(--bg-tertiary)', boxShadow: 'var(--shadow-glow)' } : {}}
               >
                 <div className="tf-category-icon" style={active ? {} : { background: 'var(--bg-tertiary)' }}>
-                  {cat.icon}
+                  <cat.icon size={24} strokeWidth={1.9} style={{ color: '#fff' }} />
                 </div>
                 <span className="tf-category-name">{cat.label}</span>
               </button>
@@ -358,7 +364,7 @@ export default function Home({ events: serverEvents }) {
       {featuredEvent && !search && activeCategory === 'all' && (
         <section className="tf-section" style={{ paddingTop: '20px' }}>
           <div className="tf-section-header">
-            <span className="tf-section-badge">⭐ Featured</span>
+            <span className="tf-section-badge"><Star size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Featured</span>
             <h2 className="tf-section-title">Highlighted Event</h2>
           </div>
 
@@ -375,15 +381,15 @@ export default function Home({ events: serverEvents }) {
               />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,0,0,0.8) 0%, transparent 100%)' }} />
               <div style={{ position: 'absolute', top: '24px', left: '24px', display: 'flex', gap: '8px' }}>
-                <Badge variant="danger">🔥 FEATURED</Badge>
+                <Badge variant="danger"><Flame size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />FEATURED</Badge>
                 <Badge variant="glass">{detectCategory(featuredEvent)}</Badge>
               </div>
             </div>
 
             <div style={{ padding: 'clamp(32px, 5vw, 56px)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Badge variant="primary">📅 {formatDate(featuredEvent.date)}</Badge>
-                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>📍 {featuredEvent.venue}</span>
+                <Badge variant="primary"><CalendarDays size={12} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{formatDate(featuredEvent.date)}</Badge>
+                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}><MapPin size={12} style={{ verticalAlign: '-2px' }} /> {featuredEvent.venue}</span>
               </div>
 
               <h3 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, marginBottom: '16px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
@@ -396,7 +402,7 @@ export default function Home({ events: serverEvents }) {
 
               <div style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>🎟️ Tickets Selling Fast</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}><Ticket size={13} style={{ verticalAlign: '-2px', marginRight: '4px' }} />Tickets Selling Fast</span>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: featuredEvent.theme_color }}>{percentSold(featuredEvent)}% Sold</span>
                 </div>
                 <Progress value={percentSold(featuredEvent)} color={featuredEvent.theme_color} />
@@ -428,7 +434,7 @@ export default function Home({ events: serverEvents }) {
       {/* ═══════════════ EVENTS SECTION (Tabs) ═══════════════ */}
       <section className="tf-section" id="events-section">
         <div className="tf-section-header">
-          <span className="tf-section-badge">🎪 Discover</span>
+          <span className="tf-section-badge"><Sparkles size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Discover</span>
           <h2 className="tf-section-title">
             {search || activeCategory !== 'all' ? 'Filtered Results' : 'Explore Events'}
           </h2>
@@ -445,7 +451,7 @@ export default function Home({ events: serverEvents }) {
                 className={`tf-events-tab ${activeTab === tab ? 'active' : ''}`}
                 onClick={() => setActiveTab(tab)}
               >
-                {tab === 'trending' ? '🔥 Trending' : tab === 'upcoming' ? '⏰ Upcoming' : '🎪 All Events'}
+                {tab === 'trending' ? (<><Flame size={14} style={{ verticalAlign: '-2px' }} /> Trending</>) : tab === 'upcoming' ? (<><Clock size={14} style={{ verticalAlign: '-2px' }} /> Upcoming</>) : (<><Tent size={14} style={{ verticalAlign: '-2px' }} /> All Events</>)}
               </button>
             ))}
           </div>
@@ -453,7 +459,7 @@ export default function Home({ events: serverEvents }) {
 
         {filtered.length === 0 ? (
           <div className="tf-empty-state">
-            <div className="tf-empty-state-icon">🎟️</div>
+            <div className="tf-empty-state-icon"><Ticket size={36} /></div>
             <h3 className="tf-empty-state-title">No events found</h3>
             <p className="tf-empty-state-desc">Try selecting a different category or adjusting your search.</p>
           </div>
@@ -484,18 +490,18 @@ export default function Home({ events: serverEvents }) {
       {/* ═══════════════ STATS ═══════════════ */}
       <section className="tf-section">
         <div className="tf-section-header">
-          <span className="tf-section-badge">📊 Platform</span>
+          <span className="tf-section-badge"><BarChart3 size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Platform</span>
           <h2 className="tf-section-title">Trusted at Scale</h2>
         </div>
         <div className="tf-stats-grid stagger-children">
           {[
-            { value: `${totalLiveEvents}+`, label: 'Events Live', icon: '🎪' },
-            { value: `${totalTicketsIssued}+`, label: 'Tickets Issued', icon: '🎟️' },
-            { value: '99.9%', label: 'Scan Success', icon: '✅' },
-            { value: '150+', label: 'Local Organisers', icon: '👥' },
+            { value: `${totalLiveEvents}+`, label: 'Events Live', icon: PartyPopper },
+            { value: `${totalTicketsIssued}+`, label: 'Tickets Issued', icon: Ticket },
+            { value: '99.9%', label: 'Scan Success', icon: CheckCircle2 },
+            { value: '150+', label: 'Local Organisers', icon: Users },
           ].map((stat) => (
             <div key={stat.label} className="tf-stat-card animate-fade-in-up">
-              <div style={{ fontSize: '2rem', marginBottom: '12px' }}>{stat.icon}</div>
+              <div style={{ marginBottom: '12px' }}><stat.icon size={30} strokeWidth={1.75} /></div>
               <div className="tf-stat-card-value">{stat.value}</div>
               <div className="tf-stat-card-label">{stat.label}</div>
             </div>
@@ -506,7 +512,7 @@ export default function Home({ events: serverEvents }) {
       {/* ═══════════════ SPONSORS ═══════════════ */}
       <section className="tf-section">
         <div className="tf-section-header">
-          <span className="tf-section-badge">🏆 Partners</span>
+          <span className="tf-section-badge"><Award size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Partners</span>
           <h2 className="tf-section-title">Official Sponsors</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }} className="stagger-children">
@@ -522,8 +528,8 @@ export default function Home({ events: serverEvents }) {
                 background: `linear-gradient(135deg, ${s.color}30, ${s.color}10)`,
                 border: `1px solid ${s.color}40`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '28px', margin: '0 auto 16px', position: 'relative', zIndex: 1,
-              }}>{s.icon}</div>
+                margin: '0 auto 16px', position: 'relative', zIndex: 1,
+              }}><s.icon size={28} strokeWidth={1.75} style={{ color: s.color }} /></div>
               <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '4px', position: 'relative', zIndex: 1 }}>{s.name}</h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', position: 'relative', zIndex: 1 }}>{s.tagline}</p>
             </div>
@@ -534,7 +540,7 @@ export default function Home({ events: serverEvents }) {
       {/* ═══════════════ TESTIMONIALS ═══════════════ */}
       <section className="tf-section">
         <div className="tf-section-header">
-          <span className="tf-section-badge">💬 Testimonials</span>
+          <span className="tf-section-badge"><MessageSquare size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Testimonials</span>
           <h2 className="tf-section-title">What Organisers Say</h2>
           <p className="tf-section-subtitle">Trusted by event professionals across Africa</p>
         </div>
@@ -558,7 +564,7 @@ export default function Home({ events: serverEvents }) {
       {/* ═══════════════ FAQ ═══════════════ */}
       <section className="tf-section">
         <div className="tf-section-header">
-          <span className="tf-section-badge">❓ FAQ</span>
+          <span className="tf-section-badge"><HelpCircle size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />FAQ</span>
           <h2 className="tf-section-title">Frequently Asked Questions</h2>
         </div>
         <div className="tf-faq stagger-children">
@@ -582,7 +588,7 @@ export default function Home({ events: serverEvents }) {
       {/* ═══════════════ NEWSLETTER ═══════════════ */}
       <section className="tf-newsletter">
         <div className="tf-newsletter-inner">
-          <Badge variant="primary" style={{ marginBottom: '20px' }}>📬 Stay in the Loop</Badge>
+          <Badge variant="primary" style={{ marginBottom: '20px' }}><Mail size={13} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '6px' }} />Stay in the Loop</Badge>
           <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '12px' }}>
             Never Miss an Event
           </h2>
@@ -591,7 +597,7 @@ export default function Home({ events: serverEvents }) {
           </p>
           {newsletterSubscribed ? (
             <div className="glass-card" style={{ maxWidth: '420px', margin: '24px auto 0', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '24px' }}>🎉</span>
+              <Sparkles size={24} style={{ color: 'var(--accent-primary)' }} />
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 700 }}>Subscribed!</div>
                 <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Check your inbox for a welcome offer.</div>
@@ -648,30 +654,30 @@ function PremiumEventCard({ event, formatDate, minPrice, favourited, onToggleFav
 
         <div className="tf-event-card-badge">
           <Badge variant="glass">{category}</Badge>
-          {allFree(event) && <Badge variant="success">🎉 FREE</Badge>}
-          {ps >= 80 && <Badge variant="error">🔥 {ps}% Sold</Badge>}
+          {allFree(event) && <Badge variant="success">FREE</Badge>}
+          {ps >= 80 && <Badge variant="error"><Flame size={11} style={{ verticalAlign: '-2px', marginRight: '3px' }} />{ps}% Sold</Badge>}
           {event.status === 'sold_out' && <Badge variant="error">Sold Out</Badge>}
         </div>
 
         <div className="tf-event-card-actions">
           <button className={`tf-event-card-action-btn ${favourited ? 'active' : ''}`} onClick={onToggleFav} aria-label="Favourite">
-            {favourited ? '❤️' : '🤍'}
+            <Heart size={16} strokeWidth={2} fill={favourited ? 'currentColor' : 'none'} />
           </button>
           <button className="tf-event-card-action-btn" onClick={onShare} aria-label="Share">
-            {isCopied ? '✓' : '🔗'}
+            {isCopied ? <Check size={16} strokeWidth={2.5} /> : <Share2 size={16} strokeWidth={2} />}
           </button>
         </div>
       </div>
 
       <div className="tf-event-card-body">
         <div className="tf-event-card-date">
-          📅 {formatDate(event.date)}
-          {event.time && <span style={{ color: 'var(--text-tertiary)', marginLeft: '8px' }}>🕐 {event.time}</span>}
+          <CalendarDays size={12} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{formatDate(event.date)}
+          {event.time && <span style={{ color: 'var(--text-tertiary)', marginLeft: '8px' }}><Clock size={12} style={{ verticalAlign: '-2px' }} /> {event.time}</span>}
         </div>
 
         <h3 className="tf-event-card-title">{event.event_name}</h3>
 
-        <div className="tf-event-card-location">📍 {event.venue}</div>
+        <div className="tf-event-card-location"><MapPin size={12} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{event.venue}</div>
 
         {/* Countdown */}
         {daysLeft !== null && daysLeft <= 30 && daysLeft > 0 && (

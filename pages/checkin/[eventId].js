@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { Badge, Progress } from '../../components/ui';
 import jsQR from 'jsqr';
+import { CheckCircle2, AlertTriangle, XCircle, Ban, Camera, Search, ClipboardList, Flashlight, Lightbulb, RefreshCw, Keyboard, LogOut, ArrowLeft, CalendarDays, MapPin, Users, BarChart3, Battery, Zap, Ticket, User } from 'lucide-react';
 
 export default function CheckinPage() {
   const router = useRouter();
@@ -218,11 +219,11 @@ export default function CheckinPage() {
   useEffect(() => () => stopCamera(), []);
 
   const resultConfig = {
-    SUCCESS: { color: '#059669', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.35)', icon: '✅' },
-    ALREADY_USED: { color: '#d97706', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.35)', icon: '⚠️' },
-    INVALID: { color: '#dc2626', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.35)', icon: '❌' },
-    CANCELLED: { color: '#dc2626', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.35)', icon: '🚫' },
-    ERROR: { color: '#dc2626', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.35)', icon: '⚠️' },
+    SUCCESS: { color: '#059669', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.35)', icon: CheckCircle2 },
+    ALREADY_USED: { color: '#d97706', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.35)', icon: AlertTriangle },
+    INVALID: { color: '#dc2626', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.35)', icon: XCircle },
+    CANCELLED: { color: '#dc2626', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.35)', icon: Ban },
+    ERROR: { color: '#dc2626', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.35)', icon: AlertTriangle },
   };
   const rc = result ? (resultConfig[result.reason] || resultConfig.ERROR) : null;
   const isSuccess = result?.reason === 'SUCCESS';
@@ -319,7 +320,7 @@ export default function CheckinPage() {
                   gap: '6px',
                 }}
               >
-                <span style={{ fontSize: '14px' }}>{batteryMode ? '🔋' : '⚡'}</span>
+                {batteryMode ? <Battery size={16} /> : <Zap size={16} />}
                 {batteryMode ? 'Low Power' : 'Battery'}
               </button>
               <button
@@ -438,10 +439,10 @@ export default function CheckinPage() {
               }}
             >
               {[
-                ['scan', '📷 Scan'],
-                ['manual', '🔍 Search'],
-                ['recent', '📋 Recent'],
-              ].map(([t, l]) => (
+                ['scan', 'Scan', Camera],
+                ['manual', 'Search', Search],
+                ['recent', 'Recent', ClipboardList],
+              ].map(([t, l, TabIcon]) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -462,7 +463,7 @@ export default function CheckinPage() {
                     gap: '6px',
                     boxShadow: tab === t ? '0 8px 24px -8px rgba(124,58,237,0.5)' : 'none',
                   }}
-                >{l}</button>
+                ><TabIcon size={14} strokeWidth={2} />{l}</button>
               ))}
             </div>
 
@@ -498,7 +499,7 @@ export default function CheckinPage() {
                   }}
                   className={isSuccess ? 'animate-checkmark' : ''}
                 >
-                  {rc.icon}
+                  <rc.icon size={26} strokeWidth={2} style={{ color: rc.color, flexShrink: 0 }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
@@ -711,7 +712,7 @@ export default function CheckinPage() {
                       gap: '8px',
                     }}
                   >
-                    <span>{flashOn ? '💡' : '🔦'}</span>
+                    <span>{flashOn ? <Lightbulb size={15} strokeWidth={2} /> : <Flashlight size={15} strokeWidth={2} />}</span>
                     {flashOn ? 'Flash ON' : 'Flash OFF'}
                   </button>
                   <button
@@ -733,14 +734,14 @@ export default function CheckinPage() {
                       gap: '8px',
                     }}
                   >
-                    <span>🔄</span>
+                    <RefreshCw size={15} strokeWidth={2} />
                     {cameraOn ? (cameraFacing === 'back' ? 'Rear Cam' : 'Front Cam') : (cameraError ? 'Retry Camera' : 'Start Camera')}
                   </button>
                 </div>
 
                 <div style={{ ...glass, borderRadius: '18px', padding: '18px' }}>
                   <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-                    <Badge variant="glass" icon="⌨️">USB Scanner / Manual Token</Badge>
+                    <Badge variant="glass"><Keyboard size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '5px' }} />USB Scanner / Manual Token</Badge>
                   </div>
                   <input
                     ref={inputRef}
@@ -792,8 +793,7 @@ export default function CheckinPage() {
                     fontSize: '11px',
                     marginTop: '10px',
                     fontWeight: 500,
-                  }}>
-                    💡 Tip: Connect a USB QR scanner — it acts as keyboard input, press Enter after scan
+                  }}>                     <Lightbulb size={14} style={{ verticalAlign: '-2px' }} /> Tip: Connect a USB QR scanner — it acts as keyboard input, press Enter after scan
                   </p>
                 </div>
               </div>
@@ -814,7 +814,7 @@ export default function CheckinPage() {
                       fontSize: '18px',
                       opacity: 0.5,
                       pointerEvents: 'none',
-                    }}>🔍</span>
+                    }}><Search size={16} strokeWidth={2} /></span>
                     <input
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
@@ -888,7 +888,7 @@ export default function CheckinPage() {
                             color: '#fff',
                             flexShrink: 0,
                           }}>
-                            {a.buyer_name?.charAt(0) || '👤'}
+                            {a.buyer_name?.charAt(0) || <User size={14} />}
                           </div>
                           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {a.buyer_name}
@@ -971,7 +971,7 @@ export default function CheckinPage() {
                     letterSpacing: '0.5px',
                     color: 'var(--text-tertiary)',
                   }}>Scanning History</div>
-                  <Badge variant="primary" icon="📋">
+                  <Badge variant="primary" icon={<ClipboardList size={14} />}>
                     {(stats?.recent || []).length} scans
                   </Badge>
                 </div>
@@ -987,7 +987,7 @@ export default function CheckinPage() {
                       fontSize: '48px',
                       marginBottom: '10px',
                       animation: 'bounce-slow 2s ease-in-out infinite',
-                    }}>🎫</div>
+                    }}><Ticket size={48} /></div>
                     <h3 style={{
                       fontFamily: 'var(--font-display)',
                       fontSize: '16px',

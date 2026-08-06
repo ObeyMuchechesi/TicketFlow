@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
 import { Badge, Button, Progress, Skeleton } from '../../../components/ui';
+import { Search, CalendarDays, MapPin, PartyPopper, Sparkles, Download } from 'lucide-react';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
@@ -62,9 +63,9 @@ export default function AdminEvents() {
           <p className="adm-section-sub">Manage and monitor all your events</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button className="adm-export-btn" onClick={exportCSV}>📥 Export CSV</button>
+          <button className="adm-export-btn" onClick={exportCSV}><Download size={15} strokeWidth={2} /> Export CSV</button>
           <Button variant="primary" size="md" onClick={() => router.push('/admin/events/new')}>
-            ✨ Create Event
+            <Sparkles size={15} strokeWidth={2} /> Create Event
           </Button>
         </div>
       </div>
@@ -104,7 +105,7 @@ export default function AdminEvents() {
         </div>
 
         <div className="adm-table-search" style={{ flex: 1, maxWidth: '320px' }}>
-          <span>🔍</span>
+          <Search size={15} strokeWidth={2} />
           <input
             placeholder="Search events..."
             value={search}
@@ -129,7 +130,7 @@ export default function AdminEvents() {
       ) : filtered.length === 0 ? (
         <div className="adm-chart-card">
           <div className="adm-empty">
-            <div className="adm-empty-icon">🎪</div>
+            <div className="adm-empty-icon"><PartyPopper size={32} strokeWidth={1.75} /></div>
             <div className="adm-empty-title">
               {events.length === 0 ? 'No Events Yet' : 'No Matching Events'}
             </div>
@@ -140,7 +141,7 @@ export default function AdminEvents() {
             </div>
             {events.length === 0 && (
               <Button variant="primary" size="lg" onClick={() => router.push('/admin/events/new')}>
-                ✨ Create Your First Event
+                <Sparkles size={15} strokeWidth={2} /> Create Your First Event
               </Button>
             )}
           </div>
@@ -160,9 +161,9 @@ export default function AdminEvents() {
                 <div className="adm-event-card-poster" style={{ background: GRADIENTS[i % GRADIENTS.length] }}>
                   {ev.poster_image ? (
                     <img src={ev.poster_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : '🎪'}
+                  ) : <CalendarDays size={40} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.9)' }} />}
                   <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px' }}>
-                    {ev.isFree && <Badge variant="success">🎉 FREE</Badge>}
+                    {ev.isFree && <Badge variant="success">FREE</Badge>}
                     <Badge variant={status.variant}>{status.label}</Badge>
                   </div>
                 </div>
@@ -170,8 +171,9 @@ export default function AdminEvents() {
                 <div className="adm-event-card-body">
                   <div className="adm-event-card-title">{ev.event_name}</div>
                   <div className="adm-event-card-meta">
-                    📅 {new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    {ev.venue && <> · 📍 {ev.venue}</>}
+                    <CalendarDays size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />
+                    {new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {ev.venue && <> · <MapPin size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '2px' }} />{ev.venue}</>}
                   </div>
 
                   <div style={{ marginBottom: '14px' }}>

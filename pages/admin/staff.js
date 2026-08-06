@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../components/AdminLayout';
 import { Badge, Button, Input, Card } from '../../components/ui';
+import { AlertCircle, CheckCircle2, UserPlus } from 'lucide-react';
 
 export default function AdminStaff() {
   const router = useRouter();
@@ -77,18 +78,18 @@ export default function AdminStaff() {
       {adding && (
         <div className="adm-chart-card fade-in-up" style={{ marginBottom: '24px' }}>
           <div className="adm-chart-header">
-            <div className="adm-chart-title">👤 New Staff Account</div>
+            <div className="adm-chart-title"><UserPlus size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />New Staff Account</div>
             <Badge variant="primary">Gate Staff Role</Badge>
           </div>
 
           {error && (
             <div style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', fontSize: '13px', fontWeight: 500, marginBottom: '16px' }}>
-              ❌ {error}
+              <AlertCircle size={15} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '6px' }} />{error}
             </div>
           )}
           {success && (
             <div style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#6ee7b7', fontSize: '13px', fontWeight: 500, marginBottom: '16px' }}>
-              ✅ {success}
+              <CheckCircle2 size={15} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '6px' }} />{success}
             </div>
           )}
 

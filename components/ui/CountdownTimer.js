@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CalendarDays, Hourglass } from 'lucide-react';
 
 function compute(target) {
   const diff = new Date(target).getTime() - Date.now();
@@ -47,7 +48,7 @@ export default function CountdownTimer({
         gap: '8px',
         minWidth: compact ? 0 : '120px',
       }}>
-        ⏳
+        <Hourglass size={compact ? 14 : 16} />
       </div>
     );
   }
@@ -96,7 +97,7 @@ export default function CountdownTimer({
         letterSpacing: '0.5px',
         border: `1px solid ${urgent ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`,
       }}>
-        {urgent ? '⏳' : '📅'} {text}
+        {urgent ? <Hourglass size={12} /> : <CalendarDays size={12} />} {text}
       </span>
     );
   }

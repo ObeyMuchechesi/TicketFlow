@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
+import { Ticket, Palette, Menu, X, AtSign, Camera, ThumbsUp, Briefcase, Check } from 'lucide-react';
 
 const THEMES = [
   { id: 'vibrant', name: 'Vibrant Light', color: '#7c3aed' },
@@ -47,7 +48,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
         <title>{`${title} | TiketFlow`}</title>
         <meta name="description" content={description} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎟️</text></svg>" />
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z'/><path d='M13 5v2'/><path d='M13 17v2'/><path d='M13 11v2'/></svg>" />
       </Head>
 
       {/* Animated Background Mesh */}
@@ -62,7 +63,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
               className="tf-logo"
               onClick={(e) => { e.preventDefault(); router.push('/'); }}
             >
-              <div className="tf-logo-icon">🎟️</div>
+              <div className="tf-logo-icon"><Ticket size={20} strokeWidth={2.25} /></div>
               <span>TiketFlow</span>
             </a>
 
@@ -82,7 +83,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
                 style={{ display: 'none' }}
                 aria-label="Menu"
               >
-                {mobileMenuOpen ? '✕' : '☰'}
+                {mobileMenuOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
               </button>
             </div>
           </div>
@@ -118,7 +119,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
               {/* Brand Column */}
               <div className="tf-footer-brand">
                 <a href="/" className="tf-logo" style={{ marginBottom: '16px' }}>
-                  <div className="tf-logo-icon">🎟️</div>
+                  <div className="tf-logo-icon"><Ticket size={20} strokeWidth={2.25} /></div>
                   <span>TiketFlow</span>
                 </a>
                 <p>
@@ -126,10 +127,10 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
                   Fast, secure, and beautifully designed.
                 </p>
                 <div className="tf-footer-social">
-                  <a href="#" aria-label="Twitter">𝕏</a>
-                  <a href="#" aria-label="Instagram">📷</a>
-                  <a href="#" aria-label="Facebook">f</a>
-                  <a href="#" aria-label="LinkedIn">in</a>
+                  <a href="#" aria-label="X (Twitter)"><AtSign size={16} strokeWidth={2} /></a>
+                  <a href="#" aria-label="Instagram"><Camera size={16} strokeWidth={2} /></a>
+                  <a href="#" aria-label="Facebook"><ThumbsUp size={16} strokeWidth={2} /></a>
+                  <a href="#" aria-label="LinkedIn"><Briefcase size={16} strokeWidth={2} /></a>
                 </div>
               </div>
 
@@ -198,7 +199,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
             }}
             aria-label="Change theme"
           >
-            🎨
+            <Palette size={20} strokeWidth={2} />
           </button>
           {themeMenuOpen && (
             <div
@@ -261,7 +262,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
                   }} />
                   {t.name}
                   {activeTheme === t.id && (
-                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--accent-primary)' }}>✓</span>
+                    <Check size={15} strokeWidth={2.5} style={{ marginLeft: 'auto', color: 'var(--accent-primary)' }} />
                   )}
                 </button>
               ))}

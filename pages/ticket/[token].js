@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
+import { Apple, Smartphone, MessageCircle, Mail, Link2, Printer, Check, ArrowLeft, TicketX } from 'lucide-react';
 
 export default function TicketPage({ ticket, event, ticketType, error: serverError }) {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div className="tf-empty-state">
-          <div className="tf-empty-state-icon">❌</div>
+          <div className="tf-empty-state-icon"><TicketX size={36} /></div>
           <h3 className="tf-empty-state-title">Ticket Not Found</h3>
           <p className="tf-empty-state-desc">This ticket may be invalid, cancelled, or the link may have expired.</p>
           <button className="tf-btn tf-btn-primary" style={{ marginTop: '24px' }} onClick={() => router.push('/')}>
@@ -99,7 +100,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
                 background: 'rgba(16,185,129,0.12)',
                 border: '1px solid rgba(16,185,129,0.4)',
                 color: '#059669',
-              }}>🎉 FREE ADMISSION</div>
+              }}>FREE ADMISSION</div>
             )}
           </div>
 
@@ -146,7 +147,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
                 { label: 'Price', value: isFree ? 'Free' : ticketType?.price != null ? `$${ticketType.price}` : null, color: isFree ? 'var(--success)' : null },
                 {
                   label: 'Status',
-                  value: isUsed ? '✓ Checked In' : isActive ? '✅ Valid' : ticket.status,
+                  value: isUsed ? 'Checked In' : isActive ? 'Valid' : ticket.status,
                   color: isActive ? 'var(--success)' : isUsed ? 'var(--warning)' : 'var(--error)',
                 },
               ].filter(r => r.value).map(row => (
@@ -175,7 +176,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
               className="tf-wallet-card tf-wallet-apple animate-fade-in-up"
               onClick={() => alert('Apple Wallet integration requires native app support')}
             >
-              <span style={{ fontSize: '1.2rem' }}></span>
+              <Apple size={19} strokeWidth={2} fill="currentColor" />
               Apple Wallet
             </button>
             <button
@@ -183,7 +184,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
               style={{ animationDelay: '0.05s' }}
               onClick={() => alert('Google Wallet integration requires native app support')}
             >
-              <span style={{ fontSize: '1.2rem' }}>G</span>
+              <Smartphone size={18} strokeWidth={2} />
               Google Wallet
             </button>
           </div>
@@ -197,14 +198,14 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
               className="tf-wallet-card tf-wallet-whatsapp animate-fade-in-up"
               style={{ animationDelay: '0.1s' }}
             >
-              💬 WhatsApp
+              <MessageCircle size={17} strokeWidth={2} /> WhatsApp
             </a>
             <a
               href={emailUrl}
               className="tf-wallet-card tf-wallet-email animate-fade-in-up"
               style={{ animationDelay: '0.15s' }}
             >
-              ✉️ Email
+              <Mail size={17} strokeWidth={2} /> Email
             </a>
           </div>
 
@@ -215,14 +216,14 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
               style={{ flex: 1 }}
               onClick={() => handleCopy(ticketUrl, 'link')}
             >
-              {copied === 'link' ? '✓ Copied!' : '🔗 Copy Link'}
+              {copied === 'link' ? <Check size={14} strokeWidth={2.5} /> : <Link2 size={14} strokeWidth={2} />} {copied === 'link' ? 'Copied!' : 'Copy Link'}
             </button>
             <button
               className="tf-btn tf-btn-secondary"
               style={{ flex: 1 }}
               onClick={() => window.print()}
             >
-              🖨️ Print
+              <Printer size={14} strokeWidth={2} /> Print
             </button>
           </div>
 
@@ -231,7 +232,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
             style={{ width: '100%', marginTop: '4px' }}
             onClick={() => router.push('/')}
           >
-            ← Back to Events
+            <ArrowLeft size={14} strokeWidth={2} /> Back to Events
           </button>
         </div>
       </div>

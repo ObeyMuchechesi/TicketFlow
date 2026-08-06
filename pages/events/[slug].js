@@ -2,6 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import { Badge, Button, Progress, StepIndicator } from '../../components/ui';
+import {
+  CalendarDays, Clock, MapPin, MessageCircle, Link2, Ticket, Image, FileText,
+  Hourglass, Crown, HelpCircle, ScrollText, Sparkles, Gift, CreditCard, Smartphone,
+  CheckCircle2, Copy, Share2, AlertTriangle, Loader2, Flame, TrendingUp, Mail, Phone,
+} from 'lucide-react';
 
 const MOCK_GALLERY = [
   'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80',
@@ -138,7 +143,8 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
   const category = detectCategory(event);
   const ps = percentSold(event);
   const totalAvail = totalTickets(event) - totalSold(event);
-  const urgencyLabel = ps >= 80 ? '🔥 Almost Sold Out!' : ps >= 60 ? '⏰ Selling Fast!' : ps >= 30 ? '📈 Popular!' : '🎟️ On Sale Now';
+  const urgencyLabel = ps >= 80 ? 'Almost Sold Out!' : ps >= 60 ? 'Selling Fast!' : ps >= 30 ? 'Popular!' : 'On Sale Now';
+  const UrgencyIcon = ps >= 80 ? Flame : ps >= 60 ? Clock : ps >= 30 ? TrendingUp : Ticket;
 
   useEffect(() => {
     const iv = setInterval(() => {
@@ -329,7 +335,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
               {category}
             </Badge>
             <Badge variant="primary" style={{ backdropFilter: 'blur(14px)', padding: '6px 14px', fontSize: '11px' }}>
-              {urgencyLabel}
+              <UrgencyIcon size={12} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{urgencyLabel}
             </Badge>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="pulse-ring">
@@ -366,15 +372,15 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
           <div className="stagger-children" style={{ maxWidth: '780px' }}>
             <div className="fade-in-up" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
               <Badge variant="primary" style={{ padding: '6px 14px', fontSize: '11px' }}>
-                📅 {formatDate(event.date)}
+                <CalendarDays size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '5px' }} />{formatDate(event.date)}
               </Badge>
               {event.time && (
                 <Badge variant="glass" style={{ padding: '6px 14px', fontSize: '11px' }}>
-                  🕐 {event.time}
+                  <Clock size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '5px' }} />{event.time}
                 </Badge>
               )}
               <Badge variant="glass" style={{ padding: '6px 14px', fontSize: '11px' }}>
-                📍 {event.venue}
+                <MapPin size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '5px' }} />{event.venue}
               </Badge>
             </div>
             <h1 className="fade-in-up" style={{
@@ -400,7 +406,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.1)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
                 >
-                  💬 WhatsApp
+                  <MessageCircle size={15} strokeWidth={2} /> WhatsApp
                 </a>
                 <a href={twitterShare} target="_blank" rel="noopener noreferrer"
                    onClick={(e) => e.stopPropagation()}
@@ -414,14 +420,14 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                    onMouseEnter={e => { e.currentTarget.style.background = '#222'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                    onMouseLeave={e => { e.currentTarget.style.background = '#000'; e.currentTarget.style.transform = 'none'; }}
                 >
-                  𝕏 Post
+                  <Share2 size={14} strokeWidth={2} /> Post
                 </a>
                 <Button
                   className="premium-btn-secondary"
                   onClick={(e) => { e.stopPropagation(); handleShare(); }}
                   style={{ padding: '10px 18px', fontSize: '13px' }}
                 >
-                  {copiedLink ? '✓ Copied!' : '🔗 Copy'}
+                  {copiedLink ? <CheckCircle2 size={14} strokeWidth={2.5} /> : <Link2 size={14} strokeWidth={2} />} {copiedLink ? 'Copied!' : 'Copy'}
                 </Button>
               </div>
 
@@ -437,7 +443,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }}
               >
-                🎟️ Get Tickets →
+                <Ticket size={17} strokeWidth={2.25} /> Get Tickets →
               </Button>
             </div>
           </div>
@@ -457,10 +463,10 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontWeight: 800, fontFamily: 'var(--font-display)', fontSize: '15px' }}>
-                🎟️ Ticket Sales Progress
+                <Ticket size={15} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Ticket Sales Progress
               </span>
               <Badge variant={ps >= 80 ? 'danger' : ps >= 60 ? 'warning' : 'info'} style={{ fontSize: '10px', padding: '4px 10px' }}>
-                {urgencyLabel}
+                <UrgencyIcon size={12} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{urgencyLabel}
               </Badge>
             </div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: accent }}>
@@ -489,7 +495,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
             {/* Gallery Section */}
             <div className="fade-in-up">
               <h3 style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-dimmed)', marginBottom: '18px', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-                📸 Event Gallery
+                <Image size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '7px' }} />Event Gallery
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', borderRadius: '16px', overflow: 'hidden' }}>
                 <div style={{
@@ -534,7 +540,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
             {/* Description */}
             <div className="fade-in-up">
               <h3 style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-dimmed)', marginBottom: '16px', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-                📝 About This Event
+                <FileText size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '7px' }} />About This Event
               </h3>
               <div className="glass-panel" style={{ padding: '28px', borderRadius: '18px' }}>
                 <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
@@ -552,16 +558,16 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                 width: '64px', height: '64px', borderRadius: '18px',
                 background: gradientAccent,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '28px', color: '#fff', flexShrink: 0,
+                flexShrink: 0,
                 boxShadow: `0 10px 30px ${accent}33`
               }}>
-                👑
+                <Crown size={28} strokeWidth={2} style={{ color: '#fff' }} />
               </div>
               <div style={{ flex: 1 }}>
                 <h4 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '4px' }}>Organised by Harare Promoter Guild</h4>
                 <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '10px' }}>Verified Elite Organiser • 24 Live Events</p>
                 <a href="mailto:promoter@tiketflow.com" style={{ fontSize: '13px', color: accent, fontWeight: 600, textDecoration: 'none' }} className="hover-underline">
-                  ✉ Contact Promoter
+                  <Mail size={13} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Contact Promoter
                 </a>
               </div>
             </div>
@@ -569,7 +575,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
             {/* Google Maps Mock Location Card */}
             <div className="fade-in-up">
               <h3 style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-dimmed)', marginBottom: '16px', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-                📍 Venue Location
+                <MapPin size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '7px' }} />Venue Location
               </h3>
               <div className="glass-panel" style={{ padding: '20px', borderRadius: '18px' }}>
                 <div style={{
@@ -608,7 +614,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                     onClick={() => navigator.clipboard.writeText(event.venue)}
                     style={{ padding: '10px 18px', fontSize: '12px' }}
                   >
-                    📋 Copy Address
+                    <Copy size={13} strokeWidth={2} /> Copy Address
                   </Button>
                 </div>
               </div>
@@ -617,7 +623,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
             {/* FAQ Accordions */}
             <div className="fade-in-up">
               <h3 style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-dimmed)', marginBottom: '16px', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-                ❓ FAQs & Info
+                <HelpCircle size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '7px' }} />FAQs & Info
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {MOCK_FAQS.map((faq, idx) => {
@@ -661,7 +667,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
             {/* Terms and Conditions */}
             <div className="fade-in-up">
               <h3 style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-dimmed)', marginBottom: '16px', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-                📋 General Terms
+                <ScrollText size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '7px' }} />General Terms
               </h3>
               <div className="glass-panel" style={{ padding: '24px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.8, borderRadius: '16px' }}>
                 <p>• Tickets purchased here are strictly non-refundable unless the event is cancelled.</p>
@@ -674,7 +680,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
             {recommended.length > 0 && (
               <div className="fade-in-up">
                 <h3 style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-dimmed)', marginBottom: '20px', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-                  🎪 Other Upcoming Events
+                  <Sparkles size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '7px' }} />Other Upcoming Events
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }} className="stagger-children">
                   {recommended.map(item => (
@@ -694,7 +700,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       </div>
                       <div style={{ padding: '18px' }}>
                         <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px', fontFamily: 'var(--font-display)' }}>{item.event_name}</h4>
-                        <p style={{ fontSize: '12px', color: (item.theme_color || accent), fontWeight: 600 }}>📅 {formatDateShort(item.date)}</p>
+                        <p style={{ fontSize: '12px', color: (item.theme_color || accent), fontWeight: 600 }}><CalendarDays size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{formatDateShort(item.date)}</p>
                       </div>
                     </div>
                   ))}
@@ -730,7 +736,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                   fontSize: '13px', marginBottom: '20px',
                   display: 'flex', alignItems: 'flex-start', gap: '8px'
                 }}>
-                  <span>⚠️</span>
+                  <AlertTriangle size={18} style={{ flexShrink: 0 }} />
                   <span>{error}</span>
                 </div>
               )}
@@ -886,7 +892,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                             background: 'rgba(16,185,129,0.08)',
                             border: '1px solid rgba(16,185,129,0.3)',
                           }}>
-                            <span style={{ fontSize: '20px' }}>🎉</span>
+                            <Sparkles size={19} strokeWidth={2} style={{ color: '#10b981' }} />
                             <div>
                               <div style={{ fontWeight: 800, color: '#059669', fontSize: '15px' }}>FREE · No payment required</div>
                               <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -1002,7 +1008,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
 
                   {/* Gift ticket toggle */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: 'var(--panel-bg)', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
-                    <span style={{ fontSize: '18px' }}>🎁</span>
+                    <Gift size={18} strokeWidth={2} style={{ color: 'var(--text-secondary)' }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '13px', fontWeight: 600 }}>Gift this ticket</div>
                       <div style={{ fontSize: '11px', color: 'var(--text-dimmed)' }}>Send directly to someone special</div>
@@ -1033,7 +1039,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                         ...(isFreeSelected ? { background: 'linear-gradient(135deg, #10b981, #059669)' } : {}),
                       }}
                     >
-                      {loading ? '⏳ Reserving...' : isFreeSelected ? '🎟️ Reserve Free Tickets' : 'Continue to Payment →'}
+                      {loading ? (<><Loader2 size={16} style={{ animation: 'spin-slow 0.8s linear infinite' }} /> Reserving...</>) : isFreeSelected ? (<><Ticket size={16} /> Reserve Free Tickets</>) : 'Continue to Payment →'}
                     </Button>
                   </div>
                 </div>
@@ -1058,7 +1064,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                           color: 'var(--text)', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
                           transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                         }}
-                      >💳 Card</button>
+                      ><CreditCard size={15} strokeWidth={2} /> Card</button>
                       <button
                         type="button" onClick={() => setPayMethod('ecocash')}
                         style={{
@@ -1068,7 +1074,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                           color: 'var(--text)', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
                           transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                         }}
-                      >📱 EcoCash</button>
+                      ><Smartphone size={15} strokeWidth={2} /> EcoCash</button>
                     </div>
 
                     {payMethod === 'stripe' && (
@@ -1133,7 +1139,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       className="premium-btn-primary pulse-glow"
                       style={{ flex: 2, padding: '14px', fontSize: '14px', background: gradientAccent }}
                     >
-                      {loading ? '⏳ Processing...' : payMethod === 'ecocash' ? `Pay $${total.toFixed(2)} with EcoCash` : `Pay $${total.toFixed(2)}`}
+                      {loading ? (<><Loader2 size={16} style={{ animation: 'spin-slow 0.8s linear infinite' }} /> Processing...</>) : payMethod === 'ecocash' ? `Pay $${total.toFixed(2)} with EcoCash` : `Pay $${total.toFixed(2)}`}
                     </Button>
                   </div>
                 </div>
@@ -1147,8 +1153,8 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       width: '72px', height: '72px', margin: '0 auto 16px', borderRadius: '22px',
                       background: 'linear-gradient(135deg, #059669, #10b981)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '34px', boxShadow: '0 12px 40px -8px rgba(16,185,129,0.5)',
-                    }}>📱</div>
+                      boxShadow: '0 12px 40px -8px rgba(16,185,129,0.5)',
+                    }}><Smartphone size={34} strokeWidth={1.9} style={{ color: '#fff' }} /></div>
                     <h3 style={{ fontSize: '22px', fontFamily: 'var(--font-display)', marginBottom: '6px', letterSpacing: '-0.02em' }}>
                       Complete your EcoCash Payment
                     </h3>
@@ -1194,7 +1200,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                             }}
                           >
-                            📞 Tap to Dial
+                            <Phone size={16} /> Tap to Dial
                           </a>
                           <button
                             onClick={() => {
@@ -1205,7 +1211,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                             className="premium-btn-secondary"
                             style={{ flex: 1, padding: '14px', borderRadius: '14px', fontWeight: 700, fontSize: '13px' }}
                           >
-                            {ecocashCopied ? '✓ Copied' : '📋 Copy'}
+                            {ecocashCopied ? <CheckCircle2 size={14} strokeWidth={2.5} /> : <Copy size={14} strokeWidth={2} />} {ecocashCopied ? 'Copied' : 'Copy'}
                           </button>
                         </div>
                         <p style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '10px' }}>
@@ -1252,12 +1258,12 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                         className="premium-btn-primary pulse-glow"
                         style={{ width: '100%', padding: '15px', fontSize: '15px', background: 'linear-gradient(135deg, #059669, #10b981)', borderRadius: '14px' }}
                       >
-                        ✅ I've Completed the Payment — Get My Tickets
+                        <CheckCircle2 size={16} strokeWidth={2.5} /> I've Completed the Payment — Get My Tickets
                       </Button>
                     </>
                   ) : (
                     <div className="glass" style={{ padding: '24px', borderRadius: '18px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '36px', marginBottom: '10px' }}>⚠️</div>
+                      <div style={{ marginBottom: '10px' }}><AlertTriangle size={40} strokeWidth={1.8} /></div>
                       <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6 }}>
                         The organiser hasn't finished setting up EcoCash for this event,
                         so your order was not created. Please choose a different payment
@@ -1268,7 +1274,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                         className="premium-btn-secondary"
                         style={{ marginTop: '16px', padding: '12px 24px' }}
                       >
-                        💳 Pay by Card instead
+                        <CreditCard size={14} strokeWidth={2} /> Pay by Card instead
                       </Button>
                     </div>
                   )}
@@ -1329,7 +1335,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       background: 'rgba(16,185,129,0.1)',
                       border: '1px solid rgba(16,185,129,0.35)',
                     }}>
-                      <span style={{ fontSize: '18px' }}>🎉</span>
+                      <Sparkles size={17} strokeWidth={2} style={{ color: '#059669' }} />
                       <span style={{ fontSize: '13px', fontWeight: 700, color: '#059669' }}>
                         Free — No Payment Required · {qty} {qty === 1 ? 'ticket' : 'tickets'} reserved
                       </span>
@@ -1368,7 +1374,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                         }}
                       >
-                        🎟️ View Ticket {tokens.length > 1 ? `#${i + 1}` : ''} →
+                        <Ticket size={16} strokeWidth={2.25} /> View Ticket {tokens.length > 1 ? `#${i + 1}` : ''} →
                       </Button>
                     ))}
                   </div>
@@ -1419,7 +1425,7 @@ function CountdownBox({ eventDate, accent }) {
   return (
     <div className="fade-in-up">
       <h3 style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-dimmed)', marginBottom: '16px', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-        ⏳ Doors Opening In
+        <Hourglass size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '7px' }} />Doors Opening In
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }} className="stagger-children">
         {[

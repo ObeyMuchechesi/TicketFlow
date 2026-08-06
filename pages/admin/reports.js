@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/AdminLayout';
 import { Card, Badge, Button, Progress, Skeleton, Input } from '../../components/ui';
+import {
+  DollarSign, Ticket, PartyPopper, TrendingUp, CheckCircle2, Users, Search,
+  BarChart3, Download, FileSpreadsheet, CalendarDays, RefreshCw, ClipboardList,
+} from 'lucide-react';
 
 const GRADIENTS = {
   revenue: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%)',
@@ -24,7 +28,7 @@ function StatCard({ label, value, sub, gradient, icon }) {
           }}>{value}</div>
           {sub && <div className="adm-kpi-sub">{sub}</div>}
         </div>
-        <div className="adm-kpi-icon" style={{ background: gradient, opacity: 0.92 }}>{icon}</div>
+        <div className="adm-kpi-icon" style={{ background: gradient, opacity: 0.92 }}><icon size={21} strokeWidth={2} /></div>
       </div>
     </div>
   );
@@ -73,9 +77,9 @@ export default function AdminReports() {
           <p className="adm-section-sub">Sales, attendance, and performance overview across all events</p>
         </div>
         <div className="adm-export-group">
-          <button className="adm-export-btn" onClick={exportCSV}>📥 CSV</button>
+          <button className="adm-export-btn" onClick={exportCSV}><Download size={14} style={{ verticalAlign: '-2px' }} /> CSV</button>
           <button className="adm-export-btn" disabled style={{ opacity: 0.5 }}>📄 PDF</button>
-          <button className="adm-export-btn" disabled style={{ opacity: 0.5 }}>📊 Excel</button>
+          <button className="adm-export-btn" disabled style={{ opacity: 0.5 }}><FileSpreadsheet size={15} strokeWidth={2} /> Excel</button>
         </div>
       </div>
 
@@ -93,19 +97,19 @@ export default function AdminReports() {
         <>
           {/* KPI Cards */}
           <div className="adm-kpi-grid stagger-children" style={{ marginBottom: '24px' }}>
-            <StatCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} sub="Gross across all events" gradient={GRADIENTS.revenue} icon="💰" />
-            <StatCard label="Tickets Sold" value={totalTicketsSold.toLocaleString()} sub="All tiers combined" gradient={GRADIENTS.tickets} icon="🎟️" />
-            <StatCard label="Total Events" value={totalEvents} sub={`${events.filter(e => e.status === 'published').length} published`} gradient={GRADIENTS.events} icon="🎪" />
-            <StatCard label="Avg / Event" value={`$${avgPerEvent.toLocaleString()}`} sub="Revenue per event" gradient={GRADIENTS.avg} icon="📈" />
-            <StatCard label="Attendance Rate" value={`${attendanceRate}%`} sub={`${totalCheckedIn} checked in`} gradient={GRADIENTS.attendance} icon="✅" />
-            <StatCard label="Unique Customers" value={Math.round(totalTicketsSold * 0.82).toLocaleString()} sub="Estimated unique buyers" gradient={GRADIENTS.customers} icon="👥" />
+            <StatCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} sub="Gross across all events" gradient={GRADIENTS.revenue} icon={DollarSign} />
+            <StatCard label="Tickets Sold" value={totalTicketsSold.toLocaleString()} sub="All tiers combined" gradient={GRADIENTS.tickets} icon={Ticket} />
+            <StatCard label="Total Events" value={totalEvents} sub={`${events.filter(e => e.status === 'published').length} published`} gradient={GRADIENTS.events} icon={PartyPopper} />
+            <StatCard label="Avg / Event" value={`$${avgPerEvent.toLocaleString()}`} sub="Revenue per event" gradient={GRADIENTS.avg} icon={TrendingUp} />
+            <StatCard label="Attendance Rate" value={`${attendanceRate}%`} sub={`${totalCheckedIn} checked in`} gradient={GRADIENTS.attendance} icon={CheckCircle2} />
+            <StatCard label="Unique Customers" value={Math.round(totalTicketsSold * 0.82).toLocaleString()} sub="Estimated unique buyers" gradient={GRADIENTS.customers} icon={Users} />
           </div>
 
           {/* Filters */}
           <div className="adm-chart-card fade-in-up" style={{ marginBottom: '24px' }}>
             <div className="adm-chart-header">
               <div>
-                <div className="adm-chart-title">🔍 Filter Report</div>
+                <div className="adm-chart-title"><Search size={15} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Filter Report</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Narrow down analytics</div>
               </div>
               <Badge variant="glass">{events.length} events</Badge>
@@ -121,7 +125,7 @@ export default function AdminReports() {
                 </select>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <Button variant="primary" fullWidth size="md">🔄 Apply</Button>
+                <Button variant="primary" fullWidth size="md"><RefreshCw size={16} /> Apply</Button>
               </div>
             </div>
           </div>
@@ -133,7 +137,7 @@ export default function AdminReports() {
               <div className="adm-chart-card fade-in-up">
                 <div className="adm-chart-header">
                   <div>
-                    <div className="adm-chart-title">📊 Revenue by Event</div>
+                    <div className="adm-chart-title"><BarChart3 size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Revenue by Event</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Top performing events</div>
                   </div>
                   <Badge variant="success">USD</Badge>
@@ -176,7 +180,7 @@ export default function AdminReports() {
               <div className="adm-chart-card fade-in-up">
                 <div className="adm-chart-header">
                   <div>
-                    <div className="adm-chart-title">🎟️ Ticket Type Mix</div>
+                    <div className="adm-chart-title"><Ticket size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Ticket Type Mix</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Sales distribution</div>
                   </div>
                   <Badge variant="primary">{ticketMix.length} tiers</Badge>
@@ -209,7 +213,7 @@ export default function AdminReports() {
           <div className="adm-table-wrap fade-in-up">
             <div className="adm-table-toolbar">
               <div>
-                <div style={{ fontFamily: 'var(--font-primary)', fontSize: '16px', fontWeight: 700 }}>📋 Event Breakdown</div>
+                <div style={{ fontFamily: 'var(--font-primary)', fontSize: '16px', fontWeight: 700 }}><ClipboardList size={18} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Event Breakdown</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Detailed attendance & sales per event</div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -229,7 +233,7 @@ export default function AdminReports() {
                 <tbody>
                   {events.length === 0 ? (
                     <tr><td colSpan="6" style={{ textAlign: 'center', padding: '50px 20px' }}>
-                      <div style={{ fontSize: '36px', marginBottom: '10px' }}>📊</div>
+                      <BarChart3 size={34} strokeWidth={1.5} style={{ marginBottom: '10px', opacity: 0.6 }} />
                       <div style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>No events to report on yet</div>
                     </td></tr>
                   ) : (
@@ -240,7 +244,7 @@ export default function AdminReports() {
                         <tr key={ev.id}>
                           <td style={{ fontWeight: 600 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `linear-gradient(135deg, ${BAR_COLORS[rowIdx % BAR_COLORS.length]}, ${BAR_COLORS[rowIdx % BAR_COLORS.length]}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🎪</div>
+                              <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `linear-gradient(135deg, ${BAR_COLORS[rowIdx % BAR_COLORS.length]}, ${BAR_COLORS[rowIdx % BAR_COLORS.length]}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><CalendarDays size={16} strokeWidth={2} style={{ color: '#fff' }} /></div>
                               <span style={{ fontFamily: 'var(--font-primary)', fontSize: '14px' }}>{ev.event_name}</span>
                             </div>
                           </td>

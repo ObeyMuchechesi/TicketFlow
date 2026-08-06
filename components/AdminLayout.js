@@ -1,33 +1,38 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  LayoutDashboard, CalendarDays, CalendarPlus, Users, BadgePercent, BarChart3,
+  QrCode, Globe, Search, Bell, Plus, Palette, LogOut, ArrowLeft,
+  Ticket, Download, UserPlus, ScanLine, Menu, X,
+} from 'lucide-react';
 
 const NAV_MAIN = [
-  { href: '/admin', label: 'Dashboard', icon: '📊' },
-  { href: '/admin/events', label: 'Events', icon: '🎪' },
-  { href: '/admin/events/new', label: 'Create Event', icon: '✨' },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/events', label: 'Events', icon: CalendarDays },
+  { href: '/admin/events/new', label: 'Create Event', icon: CalendarPlus },
 ];
 
 const NAV_MANAGE = [
-  { href: '/admin/staff', label: 'Staff', icon: '👥' },
-  { href: '/admin/promo-codes', label: 'Promo Codes', icon: '🏷️' },
-  { href: '/admin/reports', label: 'Reports', icon: '📈' },
+  { href: '/admin/staff', label: 'Staff', icon: Users },
+  { href: '/admin/promo-codes', label: 'Promo Codes', icon: BadgePercent },
+  { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
 ];
 
 const NAV_TOOLS = [
-  { href: '/staff', label: 'Gate Staff Panel', icon: '📷' },
-  { href: '/', label: 'View Site', icon: '🌐', external: true },
+  { href: '/staff', label: 'Gate Staff Panel', icon: QrCode },
+  { href: '/', label: 'View Site', icon: Globe, external: true },
 ];
 
 const CMD_ITEMS = [
   ...NAV_MAIN,
   ...NAV_MANAGE,
   ...NAV_TOOLS,
-  { href: '/admin/events/new', label: 'New Event', icon: '🎪' },
-  { href: '/admin/reports', label: 'Export CSV', icon: '📥' },
-  { href: '/admin/staff', label: 'Add Staff Member', icon: '👤' },
-  { href: '/admin/promo-codes', label: 'Create Promo Code', icon: '🎟️' },
-  { href: '/staff', label: 'Open Gate Scanner', icon: '📷' },
+  { href: '/admin/events/new', label: 'New Event', icon: Ticket },
+  { href: '/admin/reports', label: 'Export CSV', icon: Download },
+  { href: '/admin/staff', label: 'Add Staff Member', icon: UserPlus },
+  { href: '/admin/promo-codes', label: 'Create Promo Code', icon: BadgePercent },
+  { href: '/staff', label: 'Open Gate Scanner', icon: ScanLine },
 ];
 
 export default function AdminLayout({ children, title = 'Admin' }) {
@@ -147,7 +152,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                 href={item.href}
                 className={`adm-nav-link ${isNavActive(item.href) ? 'active' : ''}`}
               >
-                <span className="adm-nav-icon">{item.icon}</span>
+                <span className="adm-nav-icon"><item.icon size={18} strokeWidth={2} /></span>
                 {item.label}
               </a>
             ))}
@@ -159,7 +164,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                 href={item.href}
                 className={`adm-nav-link ${isNavActive(item.href) ? 'active' : ''}`}
               >
-                <span className="adm-nav-icon">{item.icon}</span>
+                <span className="adm-nav-icon"><item.icon size={18} strokeWidth={2} /></span>
                 {item.label}
               </a>
             ))}
@@ -174,7 +179,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <span className="adm-nav-icon">{item.icon}</span>
+                  <span className="adm-nav-icon"><item.icon size={18} strokeWidth={2} /></span>
                   {item.label}
                 </a>
               ) : (
@@ -183,7 +188,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                   href={item.href}
                   className={`adm-nav-link ${isNavActive(item.href) ? 'active' : ''}`}
                 >
-                  <span className="adm-nav-icon">{item.icon}</span>
+                  <span className="adm-nav-icon"><item.icon size={18} strokeWidth={2} /></span>
                   {item.label}
                 </a>
               )
@@ -216,7 +221,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                 width: '100%',
               }}
             >
-              <span className="adm-nav-icon">🚪</span>
+              <span className="adm-nav-icon"><LogOut size={18} strokeWidth={2} /></span>
               Sign Out
             </button>
             <a
@@ -224,7 +229,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
               className="adm-nav-link"
               style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-tertiary)' }}
             >
-              <span className="adm-nav-icon">←</span>
+              <span className="adm-nav-icon"><ArrowLeft size={16} strokeWidth={2} /></span>
               Back to site
             </a>
           </div>
@@ -240,7 +245,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
               style={{ display: 'none' }}
               id="adm-menu-toggle"
             >
-              ☰
+              <Menu size={18} strokeWidth={2} />
             </button>
             <style>{`@media(max-width:1024px){#adm-menu-toggle{display:flex!important}}`}</style>
 
@@ -248,14 +253,14 @@ export default function AdminLayout({ children, title = 'Admin' }) {
               className="adm-topbar-search"
               onClick={() => { setCmdOpen(true); setCmdQuery(''); setCmdIdx(0); }}
             >
-              <span>🔍</span>
+              <Search size={15} strokeWidth={2} />
               <span>Search or type a command...</span>
               <kbd>⌘K</kbd>
             </div>
 
             <div className="adm-topbar-actions">
               <button className="adm-topbar-btn" title="Notifications" onClick={() => router.push('/admin/reports')}>
-                🔔
+                <Bell size={17} strokeWidth={2} />
                 <span className="notif-dot" />
               </button>
               <button
@@ -263,7 +268,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                 title="Create Event"
                 onClick={() => router.push('/admin/events/new')}
               >
-                ✨
+                <Plus size={17} strokeWidth={2} />
               </button>
               <button
                 className="adm-topbar-btn"
@@ -278,7 +283,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                   try { localStorage.setItem('tf-theme', next); } catch {}
                 }}
               >
-                🎨
+                <Palette size={17} strokeWidth={2} />
               </button>
             </div>
           </div>
@@ -314,7 +319,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                       onClick={() => cmdNavigate(item.href)}
                       onMouseEnter={() => setCmdIdx(i)}
                     >
-                      <span className="cmd-icon">{item.icon}</span>
+                      <span className="cmd-icon"><item.icon size={17} strokeWidth={2} /></span>
                       <span>{item.label}</span>
                       <span className="cmd-shortcut">↵</span>
                     </div>

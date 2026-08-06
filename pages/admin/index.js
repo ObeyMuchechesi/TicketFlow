@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../components/AdminLayout';
 import { Card, Badge, Button, Progress, Skeleton } from '../../components/ui';
+import {
+  DollarSign, Ticket, Users, CheckCircle2, PartyPopper, Gauge, CircleDollarSign, Target,
+  TrendingUp, TrendingDown, BarChart3, CalendarDays, MapPin, Sparkles, Download,
+  Zap, Activity, Inbox, ChevronRight, Megaphone, RefreshCw, UserPlus, BadgePercent,
+  QrCode, Plus, Flame, TicketCheck,
+} from 'lucide-react';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%)',
@@ -31,12 +37,12 @@ function KpiCard({ label, value, sub, gradient, icon, trend, trendValue }) {
           {sub && <div className="adm-kpi-sub">{sub}</div>}
           {trend && (
             <div className={`adm-kpi-trend ${trend}`}>
-              {trend === 'up' ? '↑' : '↓'} {trendValue}
+              {trend === 'up' ? <TrendingUp size={13} strokeWidth={2.5} /> : <TrendingDown size={13} strokeWidth={2.5} />} {trendValue}
             </div>
           )}
         </div>
         <div className="adm-kpi-icon" style={{ background: gradient, opacity: 0.9 }}>
-          {icon}
+          <icon size={21} strokeWidth={2} />
         </div>
       </div>
     </div>
@@ -88,7 +94,7 @@ function DonutChart({ segments }) {
 function ActivityItem({ icon, iconBg, title, desc, time }) {
   return (
     <div className="adm-activity-item">
-      <div className="adm-activity-icon" style={{ background: iconBg }}>{icon}</div>
+      <div className="adm-activity-icon" style={{ background: iconBg }}><icon size={15} strokeWidth={2} /></div>
       <div className="adm-activity-content">
         <div className="adm-activity-title">{title}</div>
         {desc && <div className="adm-activity-desc">{desc}</div>}
@@ -143,12 +149,12 @@ export default function AdminDashboard() {
   ].filter(s => s.value > 0);
 
   const activityItems = [
-    { icon: '🎫', iconBg: 'rgba(168,85,247,0.12)', title: `${Math.floor(Math.random() * 12) + 1} tickets sold`, desc: 'General Admission tier', time: '2 min ago' },
-    { icon: '📢', iconBg: 'rgba(59,130,246,0.12)', title: 'Event published', desc: events.find(e => e.status === 'published')?.event_name || 'Summer Festival', time: '1 hr ago' },
-    { icon: '✅', iconBg: 'rgba(16,185,129,0.12)', title: `${Math.floor(Math.random() * 20) + 5} check-ins`, desc: 'Gate A scanning active', time: '3 hrs ago' },
-    { icon: '💰', iconBg: 'rgba(245,158,11,0.12)', title: `Revenue milestone: $${(totalRevenue / 1000).toFixed(1)}k`, desc: 'Across all events', time: '5 hrs ago' },
-    { icon: '👤', iconBg: 'rgba(236,72,153,0.12)', title: 'New customer registered', desc: 'via event page purchase', time: 'Yesterday' },
-    { icon: '🔄', iconBg: 'rgba(239,68,68,0.08)', title: 'Refund requested', desc: 'Order #TF-2026-0891', time: 'Yesterday' },
+    { icon: TicketCheck, iconBg: 'rgba(168,85,247,0.12)', title: `${Math.floor(Math.random() * 12) + 1} tickets sold`, desc: 'General Admission tier', time: '2 min ago' },
+    { icon: Megaphone, iconBg: 'rgba(59,130,246,0.12)', title: 'Event published', desc: events.find(e => e.status === 'published')?.event_name || 'Summer Festival', time: '1 hr ago' },
+    { icon: CheckCircle2, iconBg: 'rgba(16,185,129,0.12)', title: `${Math.floor(Math.random() * 20) + 5} check-ins`, desc: 'Gate A scanning active', time: '3 hrs ago' },
+    { icon: DollarSign, iconBg: 'rgba(245,158,11,0.12)', title: `Revenue milestone: $${(totalRevenue / 1000).toFixed(1)}k`, desc: 'Across all events', time: '5 hrs ago' },
+    { icon: UserPlus, iconBg: 'rgba(236,72,153,0.12)', title: 'New customer registered', desc: 'via event page purchase', time: 'Yesterday' },
+    { icon: RefreshCw, iconBg: 'rgba(239,68,68,0.08)', title: 'Refund requested', desc: 'Order #TF-2026-0891', time: 'Yesterday' },
   ];
 
   const maxRev = Math.max(1, ...events.map(e => Number(e.revenue || 0) || 0));
@@ -163,10 +169,10 @@ export default function AdminDashboard() {
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button className="adm-export-btn" onClick={() => router.push('/admin/events/new')}>
-            ✨ Create Event
+            <Sparkles size={15} strokeWidth={2} /> Create Event
           </button>
           <button className="adm-export-btn" onClick={() => router.push('/admin/reports')}>
-            📥 Export Report
+            <Download size={15} strokeWidth={2} /> Export Report
           </button>
         </div>
       </div>
@@ -185,14 +191,14 @@ export default function AdminDashboard() {
         <>
           {/* KPI Grid */}
           <div className="adm-kpi-grid stagger-children" style={{ marginBottom: '24px' }}>
-            <KpiCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} sub="All time gross" gradient={GRADIENTS[0]} icon="💰" trend="up" trendValue="12.5%" />
-            <KpiCard label="Tickets Sold" value={totalTicketsSold.toLocaleString()} sub={`${totalEvents} events`} gradient={GRADIENTS[1]} icon="🎟️" trend="up" trendValue="8.3%" />
-            <KpiCard label="Available Tickets" value={(totalCapacity - totalSold).toLocaleString()} sub={`${totalCapacity.toLocaleString()} total capacity`} gradient={GRADIENTS[2]} icon="🎫" />
-            <KpiCard label="Attendance Rate" value={`${attendanceRate}%`} sub={`${totalCheckedIn} checked in`} gradient={GRADIENTS[3]} icon="✅" trend={attendanceRate > 60 ? 'up' : 'down'} trendValue={`${attendanceRate}%`} />
-            <KpiCard label="Active Events" value={publishedEvents} sub={`${events.length - publishedEvents} drafts`} gradient={GRADIENTS[4]} icon="🎪" />
-            <KpiCard label="Capacity Used" value={`${capacityPct}%`} sub={`${totalSold} / ${totalCapacity}`} gradient={GRADIENTS[5]} icon="📊" />
-            <KpiCard label="Avg Ticket Price" value={`$${avgTicketPrice}`} sub="Weighted average" gradient={GRADIENTS[6]} icon="💵" />
-            <KpiCard label="Conversion Rate" value={`${conversion}%`} sub="Draft → Published" gradient={GRADIENTS[7]} icon="🎯" />
+            <KpiCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} sub="All time gross" gradient={GRADIENTS[0]} icon={DollarSign} trend="up" trendValue="12.5%" />
+            <KpiCard label="Tickets Sold" value={totalTicketsSold.toLocaleString()} sub={`${totalEvents} events`} gradient={GRADIENTS[1]} icon={Ticket} trend="up" trendValue="8.3%" />
+            <KpiCard label="Available Tickets" value={(totalCapacity - totalSold).toLocaleString()} sub={`${totalCapacity.toLocaleString()} total capacity`} gradient={GRADIENTS[2]} icon={TicketCheck} />
+            <KpiCard label="Attendance Rate" value={`${attendanceRate}%`} sub={`${totalCheckedIn} checked in`} gradient={GRADIENTS[3]} icon={CheckCircle2} trend={attendanceRate > 60 ? 'up' : 'down'} trendValue={`${attendanceRate}%`} />
+            <KpiCard label="Active Events" value={publishedEvents} sub={`${events.length - publishedEvents} drafts`} gradient={GRADIENTS[4]} icon={PartyPopper} />
+            <KpiCard label="Capacity Used" value={`${capacityPct}%`} sub={`${totalSold} / ${totalCapacity}`} gradient={GRADIENTS[5]} icon={Gauge} />
+            <KpiCard label="Avg Ticket Price" value={`$${avgTicketPrice}`} sub="Weighted average" gradient={GRADIENTS[6]} icon={CircleDollarSign} />
+            <KpiCard label="Conversion Rate" value={`${conversion}%`} sub="Draft → Published" gradient={GRADIENTS[7]} icon={Target} />
           </div>
 
           {/* Charts Row */}
@@ -202,7 +208,7 @@ export default function AdminDashboard() {
               <div className="adm-chart-card fade-in-up">
                 <div className="adm-chart-header">
                   <div>
-                    <div className="adm-chart-title">📊 Revenue Over Time</div>
+                    <div className="adm-chart-title"><BarChart3 size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Revenue Over Time</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Monthly revenue performance</div>
                   </div>
                   <Badge variant="glass">USD</Badge>
@@ -216,7 +222,7 @@ export default function AdminDashboard() {
               <div className="adm-chart-card fade-in-up">
                 <div className="adm-chart-header">
                   <div>
-                    <div className="adm-chart-title">🎟️ Ticket Mix</div>
+                    <div className="adm-chart-title"><Ticket size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Ticket Mix</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Sales distribution</div>
                   </div>
                 </div>
@@ -241,7 +247,7 @@ export default function AdminDashboard() {
                   </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-tertiary)' }}>
-                    <div style={{ fontSize: '36px', marginBottom: '8px' }}>📭</div>
+                    <Inbox size={34} strokeWidth={1.5} style={{ marginBottom: '8px', opacity: 0.5 }} />
                     <p style={{ fontSize: '13px' }}>No sales data yet</p>
                   </div>
                 )}
@@ -252,24 +258,25 @@ export default function AdminDashboard() {
           {/* Quick Actions */}
           <div style={{ marginBottom: '24px' }}>
             <h2 style={{ fontFamily: 'var(--font-primary)', fontSize: '16px', fontWeight: 700, marginBottom: '14px' }}>
-              ⚡ Quick Actions
+              <Zap size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />
+              Quick Actions
             </h2>
             <div className="adm-quick-actions stagger-children">
               {[
-                { icon: '✨', bg: 'rgba(168,85,247,0.12)', title: 'Create Event', sub: 'New event draft', href: '/admin/events/new' },
-                { icon: '📷', bg: 'rgba(16,185,129,0.12)', title: 'Scan Tickets', sub: 'Gate scanner', href: '/checkin' },
-                { icon: '📈', bg: 'rgba(59,130,246,0.12)', title: 'View Reports', sub: 'Analytics & exports', href: '/admin/reports' },
-                { icon: '👥', bg: 'rgba(236,72,153,0.12)', title: 'Manage Staff', sub: 'Add gate staff', href: '/admin/staff' },
-                { icon: '🏷️', bg: 'rgba(245,158,11,0.12)', title: 'Promo Codes', sub: 'Create discounts', href: '/admin/promo-codes' },
-                { icon: '📥', bg: 'rgba(239,68,68,0.08)', title: 'Export Data', sub: 'CSV / PDF reports', href: '/admin/reports' },
+                { icon: Sparkles, bg: 'rgba(168,85,247,0.12)', title: 'Create Event', sub: 'New event draft', href: '/admin/events/new' },
+                { icon: QrCode, bg: 'rgba(16,185,129,0.12)', title: 'Scan Tickets', sub: 'Gate scanner', href: '/staff' },
+                { icon: BarChart3, bg: 'rgba(59,130,246,0.12)', title: 'View Reports', sub: 'Analytics & exports', href: '/admin/reports' },
+                { icon: Users, bg: 'rgba(236,72,153,0.12)', title: 'Manage Staff', sub: 'Add gate staff', href: '/admin/staff' },
+                { icon: BadgePercent, bg: 'rgba(245,158,11,0.12)', title: 'Promo Codes', sub: 'Create discounts', href: '/admin/promo-codes' },
+                { icon: Download, bg: 'rgba(239,68,68,0.08)', title: 'Export Data', sub: 'CSV / PDF reports', href: '/admin/reports' },
               ].map((a, i) => (
                 <div key={i} className="adm-quick-action adm-ripple" onClick={() => router.push(a.href)}>
-                  <div className="adm-quick-action-icon" style={{ background: a.bg }}>{a.icon}</div>
+                  <div className="adm-quick-action-icon" style={{ background: a.bg }}><a.icon size={18} strokeWidth={2} /></div>
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 700 }}>{a.title}</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{a.sub}</div>
                   </div>
-                  <div style={{ marginLeft: 'auto', color: 'var(--text-tertiary)', fontSize: '16px' }}>→</div>
+                  <ChevronRight size={17} strokeWidth={2} style={{ marginLeft: 'auto', color: 'var(--text-tertiary)' }} />
                 </div>
               ))}
             </div>
@@ -282,7 +289,7 @@ export default function AdminDashboard() {
               <div className="adm-chart-card fade-in-up">
                 <div className="adm-chart-header">
                   <div>
-                    <div className="adm-chart-title">🔥 Top Performing Events</div>
+                    <div className="adm-chart-title"><Flame size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Top Performing Events</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Sorted by tickets sold</div>
                   </div>
                   <Badge variant="glass">{topEvents.length} events</Badge>
@@ -290,10 +297,10 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="stagger-children">
                   {topEvents.length === 0 ? (
                     <div className="adm-empty">
-                      <div className="adm-empty-icon">📭</div>
+                      <div className="adm-empty-icon"><Inbox size={34} strokeWidth={1.5} /></div>
                       <div className="adm-empty-title">No events yet</div>
                       <div className="adm-empty-desc">Create your first event to start tracking performance.</div>
-                      <Button variant="primary" onClick={() => router.push('/admin/events/new')}>✨ Create Event</Button>
+                      <Button variant="primary" onClick={() => router.push('/admin/events/new')}><Sparkles size={15} strokeWidth={2} /> Create Event</Button>
                     </div>
                   ) : (
                     topEvents.map((ev, i) => {
@@ -331,7 +338,7 @@ export default function AdminDashboard() {
               <div className="adm-chart-card fade-in-up">
                 <div className="adm-chart-header">
                   <div>
-                    <div className="adm-chart-title">⚡ Recent Activity</div>
+                    <div className="adm-chart-title"><Activity size={16} strokeWidth={2} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Recent Activity</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Real-time feed</div>
                   </div>
                   <Badge variant="success">Live</Badge>
@@ -357,7 +364,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <Button variant="primary" size="md" onClick={() => router.push('/admin/events/new')}>
-                + New Event
+                <Plus size={15} strokeWidth={2} /> New Event
               </Button>
             </div>
 
@@ -365,11 +372,11 @@ export default function AdminDashboard() {
               {events.length === 0 ? (
                 <div className="adm-chart-card">
                   <div className="adm-empty">
-                    <div className="adm-empty-icon">🎪</div>
+                    <div className="adm-empty-icon"><PartyPopper size={32} strokeWidth={1.75} /></div>
                     <div className="adm-empty-title">No Events Yet</div>
                     <div className="adm-empty-desc">Create your first event to start selling tickets and tracking attendance.</div>
                     <Button variant="primary" size="lg" onClick={() => router.push('/admin/events/new')}>
-                      ✨ Create Your First Event
+                      <Sparkles size={15} strokeWidth={2} /> Create Your First Event
                     </Button>
                   </div>
                 </div>
@@ -387,13 +394,13 @@ export default function AdminDashboard() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
                           <span style={{ fontWeight: 700, fontSize: '16px', fontFamily: 'var(--font-primary)' }}>{ev.event_name}</span>
-                          {ev.isFree && <Badge variant="success">🎉 FREE</Badge>}
+                          {ev.isFree && <Badge variant="success">FREE</Badge>}
                           <Badge variant={statusVariants[ev.status] || 'glass'}>{ev.status?.replace('_', ' ')}</Badge>
                         </div>
                         <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>📅</span>
+                          <CalendarDays size={14} strokeWidth={2} />
                           <span>{new Date(ev.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                          <span style={{ marginLeft: '4px' }}>📍 {ev.venue || 'TBD'}</span>
+                          <MapPin size={14} strokeWidth={2} style={{ marginLeft: '4px' }} /> {ev.venue || 'TBD'}
                         </div>
                         {ev.capacity > 0 && (
                           <div style={{ marginTop: '10px' }}>

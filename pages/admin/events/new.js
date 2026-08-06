@@ -3,6 +3,11 @@ import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
 import { Card, Badge, Button, Input, StepIndicator, Progress } from '../../../components/ui';
 import { buildEcocashShortcode } from '../../../lib/ecocash';
+import {
+  FileText, Palette, Ticket, MapPin, CalendarDays, CreditCard, Rocket, AlertCircle,
+  PartyPopper, DollarSign, Zap, Smartphone, Landmark, Banknote, X, User, Users, Map,
+  Loader2, CheckCircle2, AlertTriangle, Save, Gift,
+} from 'lucide-react';
 
 const WIZARD_STEPS = [
   'Basic Info',
@@ -24,11 +29,12 @@ const stepBadgeVariants = [
   'success',
 ];
 
-const stepIcons = ['📝', '🎨', '🎟️', '📍', '📅', '💳', '🚀'];
+const stepIcons = [FileText, Palette, Ticket, MapPin, CalendarDays, CreditCard, Rocket];
 
 export default function NewEvent() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const StepIcon = stepIcons[currentStep];
   const [form, setForm] = useState({
     event_name: '',
     slug: '',
@@ -245,11 +251,11 @@ export default function NewEvent() {
               <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
                 Step {currentStep + 1} of {WIZARD_STEPS.length} ·{' '}
                 <span style={{ color: autosaveStatus === 'Saving...' ? 'var(--warning)' : 'var(--success)', fontWeight: 600 }}>
-                  {autosaveStatus === 'Saving...' ? '⏳ ' : '✓ '}{autosaveStatus}
+                  {autosaveStatus === 'Saving...' ? <Loader2 size={12} style={{ animation: 'spin-slow 0.8s linear infinite', verticalAlign: '-2px' }} /> : <CheckCircle2 size={12} style={{ verticalAlign: '-2px' }} />}{' '}{autosaveStatus}
                 </span>
               </p>
             </div>
-            <Badge variant={stepBadgeVariants[currentStep]} icon={stepIcons[currentStep]}>
+            <Badge variant={stepBadgeVariants[currentStep]} icon={<StepIcon size={14} strokeWidth={2} />}>
               {WIZARD_STEPS[currentStep]}
             </Badge>
           </div>
@@ -272,7 +278,7 @@ export default function NewEvent() {
             borderColor: 'rgba(239,68,68,0.25)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '18px' }}>❌</span>
+              <AlertCircle size={18} strokeWidth={2} />
               <span style={{ color: '#fca5a5', fontSize: '14px', fontWeight: 500 }}>{error}</span>
             </div>
           </Card>
@@ -347,7 +353,7 @@ export default function NewEvent() {
               </Button>
             ) : (
               <Button type="submit" variant="primary" fullWidth loading={loading}>
-                {loading ? 'Creating...' : (form.status === 'published' ? '🚀 Publish Event' : '💾 Save as Draft')}
+                {loading ? 'Creating...' : (form.status === 'published' ? 'Publish Event' : 'Save as Draft')}
               </Button>
             )}
           </div>
@@ -380,11 +386,10 @@ function StepHeader({ stepNum, icon, title, description }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '26px',
         flexShrink: 0,
         boxShadow: 'var(--shadow-glow)',
       }}>
-        {icon}
+        <icon size={26} strokeWidth={1.9} style={{ color: '#fff' }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
@@ -595,8 +600,8 @@ function StepTickets({ ticketTypes, eventType, setEventTypeMode, addTicketType, 
             background: eventType === 'free'
               ? 'linear-gradient(135deg, #10b981, #059669)'
               : 'linear-gradient(135deg, #a855f7, #ec4899)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px',
-          }}>{eventType === 'free' ? '🎉' : '💰'}</div>
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>{eventType === 'free' ? <PartyPopper size={22} strokeWidth={2} style={{ color: '#fff' }} /> : <DollarSign size={22} strokeWidth={2} style={{ color: '#fff' }} />}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '15px', fontWeight: 700 }}>Event Type</div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -611,8 +616,8 @@ function StepTickets({ ticketTypes, eventType, setEventTypeMode, addTicketType, 
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           {[
-            { id: 'paid', icon: '💳', label: 'Paid Event', desc: 'Sell tickets with pricing' },
-            { id: 'free', icon: '🎉', label: 'Free Event', desc: 'Reserve tickets at $0.00' },
+            { id: 'paid', icon: CreditCard, label: 'Paid Event', desc: 'Sell tickets with pricing' },
+            { id: 'free', icon: PartyPopper, label: 'Free Event', desc: 'Reserve tickets at $0.00' },
           ].map(opt => (
             <label
               key={opt.id}
@@ -632,7 +637,7 @@ function StepTickets({ ticketTypes, eventType, setEventTypeMode, addTicketType, 
                 style={{ display: 'none' }}
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '18px' }}>{opt.icon}</span>
+                <opt.icon size={17} strokeWidth={2} />
                 <span style={{ fontSize: '14px', fontWeight: 700 }}>{opt.label}</span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{opt.desc}</div>
@@ -650,7 +655,7 @@ function StepTickets({ ticketTypes, eventType, setEventTypeMode, addTicketType, 
           color: '#fca5a5',
           fontSize: '13px',
           fontWeight: 500,
-        }}>⚠️ {errors.tickets}</div>
+        }}><AlertTriangle size={16} style={{ verticalAlign: '-3px', marginRight: '6px' }} />{errors.tickets}</div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {ticketTypes.map((tt, i) => (
@@ -800,11 +805,11 @@ function StepVenue({ form, setF }) {
           marginBottom: '14px',
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '40px', marginBottom: '6px' }}>🗺️</div>
+            <Map size={34} strokeWidth={1.5} style={{ marginBottom: '6px', opacity: 0.7 }} />
             <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Map Preview · Coordinates below</div>
           </div>
         </div>
-        <Badge variant="info" style={{ marginBottom: '0' }}>📍 Current Venue: {form.venue || 'TBD'}</Badge>
+        <Badge variant="info" style={{ marginBottom: '0' }}><MapPin size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />Current Venue: {form.venue || 'TBD'}</Badge>
       </Card>
 
       <div className="field-group">
@@ -954,9 +959,8 @@ function StepPayments({ form, setF }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '24px',
             flexShrink: 0,
-          }}>⚡</div>
+          }}><Zap size={24} strokeWidth={2} style={{ color: '#fff' }} /></div>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 700 }}>Stripe Connect</div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -974,10 +978,10 @@ function StepPayments({ form, setF }) {
         <label>Accepted Payment Methods</label>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
           {[
-            { id: 'stripe', name: 'Cards (Stripe)', icon: '💳', def: true },
-            { id: 'mobile', name: 'Mobile Money', icon: '📱' },
-            { id: 'transfer', name: 'Bank Transfer', icon: '🏦' },
-            { id: 'cash', name: 'Cash at Gate', icon: '💵' },
+            { id: 'stripe', name: 'Cards (Stripe)', icon: CreditCard, def: true },
+            { id: 'mobile', name: 'Mobile Money', icon: Smartphone },
+            { id: 'transfer', name: 'Bank Transfer', icon: Landmark },
+            { id: 'cash', name: 'Cash at Gate', icon: Banknote },
           ].map(opt => (
             <label
               key={opt.id}
@@ -1008,7 +1012,7 @@ function StepPayments({ form, setF }) {
                 }}
                 style={{ width: '18px', height: '18px', accentColor: 'var(--accent)' }}
               />
-              <span style={{ fontSize: '18px' }}>{opt.icon}</span>
+              <opt.icon size={17} strokeWidth={2} />
               <span style={{ fontSize: '13px', fontWeight: 600 }}>{opt.name}</span>
             </label>
           ))}
@@ -1026,9 +1030,8 @@ function StepPayments({ form, setF }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '22px',
             flexShrink: 0,
-          }}>📱</div>
+          }}><Smartphone size={22} strokeWidth={2} style={{ color: '#fff' }} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '15px', fontWeight: 700 }}>EcoCash Configuration</div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -1044,9 +1047,9 @@ function StepPayments({ form, setF }) {
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
               {[
-                { id: 'none', label: 'Not Using', icon: '❌' },
-                { id: 'biller', label: 'Biller Code', icon: '🏦' },
-                { id: 'agent', label: 'Agent Code', icon: '👤' },
+                { id: 'none', label: 'Not Using', icon: X },
+                { id: 'biller', label: 'Biller Code', icon: Landmark },
+                { id: 'agent', label: 'Agent Code', icon: User },
               ].map(opt => (
                 <label
                   key={opt.id}
@@ -1067,7 +1070,7 @@ function StepPayments({ form, setF }) {
                     onChange={() => setF('ecocash_type', opt.id)}
                     style={{ display: 'none' }}
                   />
-                  <div style={{ fontSize: '20px', marginBottom: '4px' }}>{opt.icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}><opt.icon size={19} strokeWidth={2} /></div>
                   <div style={{ fontSize: '12px', fontWeight: 600 }}>{opt.label}</div>
                 </label>
               ))}
@@ -1099,7 +1102,7 @@ function StepPayments({ form, setF }) {
                   border: '1px dashed rgba(16,185,129,0.35)',
                 }}>
                   <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                    ⚡ Auto-generated customer shortcode (preview)
+                    <Zap size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />Auto-generated customer shortcode (preview)
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '14px', fontWeight: 700, color: '#047857', wordBreak: 'break-all' }}>
                     {ecocashPreview}
@@ -1147,9 +1150,8 @@ function StepPublish({ form, ticketTypes, eventType, setF, onEdit }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '40px',
             flexShrink: 0,
-          }}>🎪</div>
+          }}><PartyPopper size={38} strokeWidth={1.75} style={{ color: '#fff' }} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <h3 style={{
@@ -1165,19 +1167,19 @@ function StepPublish({ form, ticketTypes, eventType, setF, onEdit }) {
             <div style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>
               {form.date ? `${new Date(form.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}` : 'No date'}
               {form.time ? ` · ${form.time}` : ''}
-              {form.venue ? ` · 📍 ${form.venue}` : ''}
+              {form.venue ? ` · ${form.venue}` : ''}
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Badge variant="primary">🎟️ {validTickets.length} tiers</Badge>
-              <Badge variant="success">👥 {totalQty.toLocaleString()} tickets</Badge>
+              <Badge variant="primary"><Ticket size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{validTickets.length} tiers</Badge>
+              <Badge variant="success"><Users size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{totalQty.toLocaleString()} tickets</Badge>
               {isFreeEvent ? (
-                <Badge variant="success">🎉 FREE · No payment required</Badge>
+                <Badge variant="success"><Gift size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />FREE · No payment required</Badge>
               ) : (
                 <Badge variant="info">
-                  💵 {minPrice === maxPrice ? `$${minPrice}` : `$${minPrice} – $${maxPrice}`}
+                  <DollarSign size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />{minPrice === maxPrice ? `$${minPrice}` : `$${minPrice} – $${maxPrice}`}
                 </Badge>
               )}
-              {form.capacity && <Badge variant="warning">🏟️ Cap {Number(form.capacity).toLocaleString()}</Badge>}
+              {form.capacity && <Badge variant="warning"><Users size={12} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '4px' }} />Cap {Number(form.capacity).toLocaleString()}</Badge>}
             </div>
           </div>
         </div>
@@ -1242,7 +1244,7 @@ function StepPublish({ form, ticketTypes, eventType, setF, onEdit }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '18px',
-              }}>💾</div>
+              }}><Save size={18} /></div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '14px' }}>Save as Draft</div>
                 <div style={{ fontSize: '11px', color: 'var(--text-dimmed)' }}>Not visible to public</div>
@@ -1277,7 +1279,7 @@ function StepPublish({ form, ticketTypes, eventType, setF, onEdit }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '18px',
-              }}>🚀</div>
+              }}><Rocket size={18} /></div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '14px' }}>Publish Now</div>
                 <div style={{ fontSize: '11px', color: 'var(--text-dimmed)' }}>Live · tickets on sale</div>

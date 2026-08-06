@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 export default function StaffLogin() {
   const router = useRouter();
@@ -101,7 +102,7 @@ export default function StaffLogin() {
                 color: '#dc2626', fontSize: '14px', marginBottom: '20px',
                 display: 'flex', alignItems: 'center', gap: '8px',
               }}>
-                <span>❌</span> {error}
+                <AlertCircle size={16} strokeWidth={2} /> {error}
               </div>
             )}
 
@@ -168,7 +169,7 @@ export default function StaffLogin() {
                   fontFamily: 'var(--font-primary)',
                 }}
               >
-                {loading ? '⏳ Signing in...' : 'Sign In →'}
+                {loading ? (<><Loader2 size={16} style={{ animation: 'spin-slow 0.8s linear infinite', verticalAlign: '-3px' }} /> Signing in...</>) : 'Sign In →'}
               </button>
             </form>
           </div>
