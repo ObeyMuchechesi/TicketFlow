@@ -342,9 +342,9 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
           animationDelay: '-8s', pointerEvents: 'none'
         }} />
 
-        {/* Top glass badges */}
+        {/* Top glass badges — pushed below the fixed nav so they are never hidden behind it */}
         <div style={{
-          position: 'absolute', top: '24px', left: '24px', right: '24px',
+          position: 'absolute', top: 'clamp(96px, 12vh, 108px)', left: '24px', right: '24px',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', zIndex: 5
         }} className="fade-in-up">
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -383,7 +383,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
         {/* Bottom content */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
-          padding: 'clamp(32px, 6vw, 80px) clamp(20px, 4vw, 60px)',
+          padding: 'clamp(64px, 9vw, 120px) clamp(20px, 4vw, 60px) clamp(72px, 8vw, 120px)',
           maxWidth: '1200px', margin: '0 auto', zIndex: 5
         }}>
           <div className="stagger-children" style={{ maxWidth: '780px' }}>
