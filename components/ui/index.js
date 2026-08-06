@@ -7,3 +7,4 @@ export { default as Skeleton } from './Skeleton';
 export { ToastProvider, useToast } from './Toast';
 export { default as StepIndicator } from './StepIndicator';
 export { default as CountdownTimer } from './CountdownTimer';
+export { default as CountUp } from './CountUp';

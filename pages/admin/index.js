@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../components/AdminLayout';
-import { Card, Badge, Button, Progress, Skeleton } from '../../components/ui';
+import { Card, Badge, Button, Progress, Skeleton, CountUp } from '../../components/ui';
 import {
   DollarSign, Ticket, Users, CheckCircle2, PartyPopper, Gauge, CircleDollarSign, Target,
   TrendingUp, TrendingDown, BarChart3, CalendarDays, MapPin, Sparkles, Download,
@@ -22,18 +22,22 @@ const GRADIENTS = [
 
 const CHART_COLORS = ['#a855f7', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6'];
 
-function KpiCard({ label, value, sub, gradient, icon, trend, trendValue }) {
+function KpiCard({ label, value, num, prefix, suffix, decimals, sub, gradient, icon, trend, trendValue }) {
   return (
     <div className="adm-kpi-card" style={{ '--kpi-accent': gradient }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="adm-kpi-label">{label}</div>
-          <div className="adm-kpi-value adm-count-animate" style={{
+          <div className="adm-kpi-value" style={{
             background: gradient,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-          }}>{value}</div>
+          }}>
+            {num !== undefined ? (
+              <CountUp end={num} prefix={prefix} suffix={suffix} decimals={decimals ?? 0} />
+            ) : value}
+          </div>
           {sub && <div className="adm-kpi-sub">{sub}</div>}
           {trend && (
             <div className={`adm-kpi-trend ${trend}`}>
@@ -191,14 +195,14 @@ export default function AdminDashboard() {
         <>
           {/* KPI Grid */}
           <div className="adm-kpi-grid stagger-children" style={{ marginBottom: '24px' }}>
-            <KpiCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} sub="All time gross" gradient={GRADIENTS[0]} icon={DollarSign} trend="up" trendValue="12.5%" />
-            <KpiCard label="Tickets Sold" value={totalTicketsSold.toLocaleString()} sub={`${totalEvents} events`} gradient={GRADIENTS[1]} icon={Ticket} trend="up" trendValue="8.3%" />
-            <KpiCard label="Available Tickets" value={(totalCapacity - totalSold).toLocaleString()} sub={`${totalCapacity.toLocaleString()} total capacity`} gradient={GRADIENTS[2]} icon={TicketCheck} />
-            <KpiCard label="Attendance Rate" value={`${attendanceRate}%`} sub={`${totalCheckedIn} checked in`} gradient={GRADIENTS[3]} icon={CheckCircle2} trend={attendanceRate > 60 ? 'up' : 'down'} trendValue={`${attendanceRate}%`} />
-            <KpiCard label="Active Events" value={publishedEvents} sub={`${events.length - publishedEvents} drafts`} gradient={GRADIENTS[4]} icon={PartyPopper} />
-            <KpiCard label="Capacity Used" value={`${capacityPct}%`} sub={`${totalSold} / ${totalCapacity}`} gradient={GRADIENTS[5]} icon={Gauge} />
-            <KpiCard label="Avg Ticket Price" value={`$${avgTicketPrice}`} sub="Weighted average" gradient={GRADIENTS[6]} icon={CircleDollarSign} />
-            <KpiCard label="Conversion Rate" value={`${conversion}%`} sub="Draft → Published" gradient={GRADIENTS[7]} icon={Target} />
+            <KpiCard label="Total Revenue" num={totalRevenue} prefix="$" sub="All time gross" gradient={GRADIENTS[0]} icon={DollarSign} trend="up" trendValue="12.5%" />
+            <KpiCard label="Tickets Sold" num={totalTicketsSold} sub={`${totalEvents} events`} gradient={GRADIENTS[1]} icon={Ticket} trend="up" trendValue="8.3%" />
+            <KpiCard label="Available Tickets" num={totalCapacity - totalSold} sub={`${totalCapacity.toLocaleString()} total capacity`} gradient={GRADIENTS[2]} icon={TicketCheck} />
+            <KpiCard label="Attendance Rate" num={attendanceRate} suffix="%" sub={`${totalCheckedIn} checked in`} gradient={GRADIENTS[3]} icon={CheckCircle2} trend={attendanceRate > 60 ? 'up' : 'down'} trendValue={`${attendanceRate}%`} />
+            <KpiCard label="Active Events" num={publishedEvents} sub={`${events.length - publishedEvents} drafts`} gradient={GRADIENTS[4]} icon={PartyPopper} />
+            <KpiCard label="Capacity Used" num={capacityPct} suffix="%" sub={`${totalSold} / ${totalCapacity}`} gradient={GRADIENTS[5]} icon={Gauge} />
+            <KpiCard label="Avg Ticket Price" num={Number(avgTicketPrice)} prefix="$" decimals={2} sub="Weighted average" gradient={GRADIENTS[6]} icon={CircleDollarSign} />
+            <KpiCard label="Conversion Rate" num={conversion} suffix="%" sub="Draft → Published" gradient={GRADIENTS[7]} icon={Target} />
           </div>
 
           {/* Charts Row */}

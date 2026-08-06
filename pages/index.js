@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
-import { Badge, Button, Card, Progress, CountdownTimer } from '../components/ui';
+import { Badge, Button, Card, Progress, CountdownTimer, CountUp } from '../components/ui';
 import {
   Ticket, Music, PartyPopper, Church, Briefcase, UtensilsCrossed, GraduationCap, Mic, Trophy,
   Star, Sparkles, BarChart3, Award, MessageSquare, HelpCircle, Mail, Zap, Search, Flame,
@@ -286,13 +286,15 @@ export default function Home({ events: serverEvents }) {
 
           <div className="tf-hero-stats animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
             {[
-              { value: `${totalLiveEvents}+`, label: 'Events Live' },
-              { value: `${(totalTicketsIssued / 1000).toFixed(1)}K+`, label: 'Tickets Sold' },
-              { value: '99.9%', label: 'Scan Success' },
-              { value: '150+', label: 'Organisers' },
+              { end: totalLiveEvents, suffix: '+', decimals: 0, label: 'Events Live' },
+              { end: totalTicketsIssued / 1000, suffix: 'K+', decimals: 1, label: 'Tickets Sold' },
+              { end: 99.9, suffix: '%', decimals: 1, label: 'Scan Success' },
+              { end: 150, suffix: '+', decimals: 0, label: 'Organisers' },
             ].map((s, i) => (
               <div key={i} className="tf-hero-stat">
-                <div className="tf-hero-stat-value">{s.value}</div>
+                <div className="tf-hero-stat-value">
+                  <CountUp end={s.end} suffix={s.suffix} decimals={s.decimals} duration={1400 + i * 250} />
+                </div>
                 <div className="tf-hero-stat-label">{s.label}</div>
               </div>
             ))}
@@ -492,14 +494,16 @@ export default function Home({ events: serverEvents }) {
         </div>
         <div className="tf-stats-grid stagger-children">
           {[
-            { value: `${totalLiveEvents}+`, label: 'Events Live', icon: PartyPopper },
-            { value: `${totalTicketsIssued}+`, label: 'Tickets Issued', icon: Ticket },
-            { value: '99.9%', label: 'Scan Success', icon: CheckCircle2 },
-            { value: '150+', label: 'Local Organisers', icon: Users },
+            { end: totalLiveEvents, suffix: '+', decimals: 0, label: 'Events Live', icon: PartyPopper },
+            { end: totalTicketsIssued, suffix: '+', decimals: 0, label: 'Tickets Issued', icon: Ticket },
+            { end: 99.9, suffix: '%', decimals: 1, label: 'Scan Success', icon: CheckCircle2 },
+            { end: 150, suffix: '+', decimals: 0, label: 'Local Organisers', icon: Users },
           ].map((stat) => (
             <div key={stat.label} className="tf-stat-card animate-fade-in-up">
               <div style={{ marginBottom: '12px' }}><stat.icon size={30} strokeWidth={1.75} /></div>
-              <div className="tf-stat-card-value">{stat.value}</div>
+              <div className="tf-stat-card-value">
+                <CountUp end={stat.end} suffix={stat.suffix} decimals={stat.decimals} duration={1500} />
+              </div>
               <div className="tf-stat-card-label">{stat.label}</div>
             </div>
           ))}

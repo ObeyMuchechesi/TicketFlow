@@ -73,6 +73,9 @@ export default function NewEvent() {
   ]);
   const [eventType, setEventType] = useState('paid'); // 'paid' | 'free'
   const [loading, setLoading] = useState(false);
+  const [mediaStatus, setMediaStatus] = useState(''); // '' | 'saving' | 'saved' | 'error'
+  const mediaSaveTimer = useRef(null);
+  const mediaSaveSeq = useRef(0); // guards against out-of-order PUT responses
   const [error, setError] = useState('');
   const [stepErrors, setStepErrors] = useState({});
   const [autosaveStatus, setAutosaveStatus] = useState('Saved');
@@ -174,6 +177,56 @@ export default function NewEvent() {
       if (k === 'event_name') next.slug = v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       return next;
     });
+  }
+
+  // Auto-save an uploaded image (or poster URL) immediately.
+  // - Edit mode: PUT straight to the database so the image persists without
+  //   having to submit the whole wizard.
+  // - Create mode: the event row doesn't exist yet, so persist the image into
+  //   the autosave draft instantly (it's submitted together with the event).
+  function saveMedia(field, value) {
+    setF(field, value);
+    const seq = ++mediaSaveSeq.current;
+    if (!isEdit || !eventId) {
+      try {
+        const draft = JSON.parse(localStorage.getItem('tf_new_event_draft') || 'null');
+        // Merge current form state on top of the draft so fresh edits aren't lost.
+        const nextForm = { ...(draft?.form || {}), ...form, [field]: value };
+        localStorage.setItem('tf_new_event_draft', JSON.stringify({ ...draft, form: nextForm }));
+      } catch {}
+      setMediaStatus('saved');
+      clearTimeout(mediaSaveTimer.current);
+      mediaSaveTimer.current = setTimeout(() => setMediaStatus(''), 2500);
+      return;
+    }
+    setMediaStatus('saving');
+    fetch(`/api/events/${eventId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value || null }),
+    })
+      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        // Ignore stale responses from an older upload in the same field.
+        if (seq !== mediaSaveSeq.current) return;
+        if (!ok && /ecocash_|bank_|cover_image|theme_image|column .* does not exist/.test(d?.error || '')) {
+          // DB not migrated for media columns — treat as saved in the form; it
+          // will be persisted on wizard submit via the graceful fallback path.
+          setMediaStatus('saved');
+        } else if (ok) {
+          setMediaStatus('saved');
+        } else {
+          setMediaStatus('error');
+        }
+        clearTimeout(mediaSaveTimer.current);
+        mediaSaveTimer.current = setTimeout(() => setMediaStatus(''), 2500);
+      })
+      .catch(() => {
+        if (seq !== mediaSaveSeq.current) return;
+        setMediaStatus('error');
+        clearTimeout(mediaSaveTimer.current);
+        mediaSaveTimer.current = setTimeout(() => setMediaStatus(''), 2500);
+      });
   }
 
   function addTicketType() {
@@ -440,7 +493,7 @@ export default function NewEvent() {
               <StepBasicInfo form={form} setF={setF} errors={stepErrors} />
             )}
             {currentStep === 1 && (
-              <StepBranding form={form} setF={setF} errors={stepErrors} />
+              <StepBranding form={form} setF={setF} errors={stepErrors} saveMedia={saveMedia} mediaStatus={mediaStatus} />
             )}
             {currentStep === 2 && (
               <StepTickets
@@ -635,7 +688,7 @@ function StepBasicInfo({ form, setF, errors }) {
 
 // Gallery image uploader — reads the file client-side, compresses it to a
 // reasonable size and stores it as a base64 data URL (no storage service needed).
-function ImageUploader({ label, description, value, onChange, aspect = '16/9' }) {
+function ImageUploader({ label, description, value, onChange, onSave, aspect = '16/9' }) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -646,10 +699,11 @@ function ImageUploader({ label, description, value, onChange, aspect = '16/9' })
     try {
       const dataUrl = await compressImage(file, 1400, 0.82);
       onChange(dataUrl);
+      onSave?.(dataUrl);
     } catch {
       // fall back to raw read if canvas fails
       const reader = new FileReader();
-      reader.onload = () => onChange(reader.result);
+      reader.onload = () => { onChange(reader.result); onSave?.(reader.result); };
       reader.readAsDataURL(file);
     }
     setBusy(false);
@@ -719,7 +773,7 @@ function ImageUploader({ label, description, value, onChange, aspect = '16/9' })
       {value && (
         <button
           type="button"
-          onClick={() => onChange('')}
+          onClick={() => { onChange(''); onSave?.(''); }}
           style={{ marginTop: '8px', fontSize: '12px', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
         >
           ✕ Remove image
@@ -752,14 +806,34 @@ function compressImage(file, maxDim, quality) {
   });
 }
 
-function StepBranding({ form, setF, errors }) {
+function StepBranding({ form, setF, errors, saveMedia, mediaStatus }) {
+  const lastPosterSaved = useRef(null);
   return (
     <Wrapper>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          Images are saved automatically as soon as you upload them.
+        </div>
+        {mediaStatus && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600,
+            padding: '4px 12px', borderRadius: '999px',
+            color: mediaStatus === 'error' ? '#fca5a5' : mediaStatus === 'saving' ? 'var(--warning)' : '#34d399',
+            background: mediaStatus === 'error' ? 'rgba(239,68,68,0.1)' : mediaStatus === 'saving' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
+            border: `1px solid ${mediaStatus === 'error' ? 'rgba(239,68,68,0.3)' : mediaStatus === 'saving' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)'}`,
+          }}>
+            {mediaStatus === 'saving' && <Loader2 size={12} style={{ animation: 'spin-slow 0.8s linear infinite' }} />}
+            {mediaStatus === 'saving' ? 'Saving image…' : mediaStatus === 'error' ? 'Save failed — will save on submit' : '✓ Image saved'}
+          </span>
+        )}
+      </div>
+
       <ImageUploader
         label="Cover Photo"
         description="The main banner shown on your event page and event cards — pick from your gallery."
         value={form.cover_image}
         onChange={v => setF('cover_image', v)}
+        onSave={v => saveMedia('cover_image', v)}
         aspect="16/9"
       />
 
@@ -768,6 +842,7 @@ function StepBranding({ form, setF, errors }) {
         description="An optional background texture/atmosphere image that sets the mood of your event page."
         value={form.theme_image}
         onChange={v => setF('theme_image', v)}
+        onSave={v => saveMedia('theme_image', v)}
         aspect="21/9"
       />
 
@@ -777,7 +852,14 @@ function StepBranding({ form, setF, errors }) {
         placeholder="https://yourbucket.s3.amazonaws.com/poster.jpg"
         value={form.poster_image}
         onChange={e => setF('poster_image', e.target.value)}
-        helper="Alternative to uploading — link to an external image"
+        onBlur={() => {
+          // Only persist when the URL actually changed
+          if (form.poster_image !== lastPosterSaved.current) {
+            lastPosterSaved.current = form.poster_image;
+            saveMedia('poster_image', form.poster_image);
+          }
+        }}
+        helper="Alternative to uploading — link to an external image (saved on blur)"
       />
 
       {form.poster_image && !form.cover_image && (
