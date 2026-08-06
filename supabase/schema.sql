@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS events (
   capacity          INTEGER DEFAULT 0,
   status            TEXT NOT NULL DEFAULT 'draft'
                       CHECK (status IN ('draft','published','sold_out','completed','cancelled')),
+  ecocash_type      TEXT CHECK (ecocash_type IN ('biller','agent','none')),
+  ecocash_code      TEXT,
+  ecocash_phone     TEXT,
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 

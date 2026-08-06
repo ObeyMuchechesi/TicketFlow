@@ -3,7 +3,7 @@ schema_version: 1
 locale: en-US
 branch: master
 nodes_managed: true
-exported_at: "2026-08-05T11:32:47Z"
+exported_at: "2026-08-05T12:24:19Z"
 modules:
     "":
         dir_name: TicketFlow Next.js Application Root
@@ -31,8 +31,7 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: pages_public
+        related_to: []
     pages_public:
         dir_name: Public Landing Page & Next.js App Shell
         title: Public Landing Page & Next.js App Shell
@@ -43,5 +42,4 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: lib
+        related_to: []
