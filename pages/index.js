@@ -5,7 +5,7 @@ import { Badge, Button, Card, Progress, CountdownTimer } from '../components/ui'
 import {
   Ticket, Music, PartyPopper, Church, Briefcase, UtensilsCrossed, GraduationCap, Mic, Trophy,
   Star, Sparkles, BarChart3, Award, MessageSquare, HelpCircle, Mail, Zap, Search, Flame,
-  Heart, Share2, Check, CupSoda, Wifi, Beer, Landmark, CheckCircle2, Users,
+  Heart, Share2, Check, CheckCircle2, Users,
   MapPin, CalendarDays, Clock, Tent,
 } from 'lucide-react';
 
@@ -22,10 +22,7 @@ const CATEGORIES = [
 ];
 
 const SPONSORS = [
-  { name: 'Delta Corp', tagline: 'Premium Beverages', icon: CupSoda, color: '#c41e3a' },
-  { name: 'Econet Wireless', tagline: 'Stay Connected', icon: Wifi, color: '#00a859' },
-  { name: 'Castle Lager', tagline: 'Official Beer Partner', icon: Beer, color: '#003da5' },
-  { name: 'NMB Bank', tagline: 'Financial Partner', icon: Landmark, color: '#2d5016' },
+  { name: 'EverAfter Hub', tagline: 'Official Event Partner', icon: Sparkles },
 ];
 
 const TESTIMONIALS = [
@@ -351,7 +348,7 @@ export default function Home({ events: serverEvents }) {
                 style={active ? { borderColor: 'var(--accent-primary)', background: 'var(--bg-tertiary)', boxShadow: 'var(--shadow-glow)' } : {}}
               >
                 <div className="tf-category-icon" style={active ? {} : { background: 'var(--bg-tertiary)' }}>
-                  <cat.icon size={24} strokeWidth={1.9} style={{ color: '#fff' }} />
+                  <cat.icon size={24} strokeWidth={1.9} style={{ color: active ? '#fff' : 'var(--accent-primary)' }} />
                 </div>
                 <span className="tf-category-name">{cat.label}</span>
               </button>
@@ -515,21 +512,21 @@ export default function Home({ events: serverEvents }) {
           <span className="tf-section-badge"><Award size={12} strokeWidth={2.5} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Partners</span>
           <h2 className="tf-section-title">Official Sponsors</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }} className="stagger-children">
+        <div style={{ display: 'flex', justifyContent: 'center' }} className="stagger-children">
           {SPONSORS.map((s) => (
-            <div key={s.name} className="glass-card animate-fade-in-up" style={{ padding: '28px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+            <div key={s.name} className="glass-card animate-fade-in-up" style={{ padding: '28px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden', maxWidth: '420px', width: '100%' }}>
               <div style={{
                 position: 'absolute', top: '-30px', right: '-30px',
                 width: '100px', height: '100px', borderRadius: '50%',
-                background: `${s.color}20`, filter: 'blur(40px)',
+                background: 'var(--accent-primary)', opacity: 0.12, filter: 'blur(40px)',
               }} />
               <div style={{
                 width: '64px', height: '64px', borderRadius: 'var(--radius-lg)',
-                background: `linear-gradient(135deg, ${s.color}30, ${s.color}10)`,
-                border: `1px solid ${s.color}40`,
+                background: 'var(--accent-muted)',
+                border: '1px solid var(--border-accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 16px', position: 'relative', zIndex: 1,
-              }}><s.icon size={28} strokeWidth={1.75} style={{ color: s.color }} /></div>
+              }}><s.icon size={28} strokeWidth={1.75} style={{ color: 'var(--accent-primary)' }} /></div>
               <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '4px', position: 'relative', zIndex: 1 }}>{s.name}</h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', position: 'relative', zIndex: 1 }}>{s.tagline}</p>
             </div>
