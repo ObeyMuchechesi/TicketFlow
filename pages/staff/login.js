@@ -8,6 +8,28 @@ export default function StaffLogin() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [detectedRole, setDetectedRole] = useState(null); // null = unknown/pending
+
+  // Look up the role of the typed email so the footer link can adapt:
+  // organisers/admins → "Back to Admin Login", everyone else → "Back to Home".
+  useEffect(() => {
+    const email = form.email.toLowerCase().trim();
+    if (!email) { setDetectedRole(null); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setDetectedRole(null); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-role?email=${encodeURIComponent(email)}`);
+        const d = await res.json();
+        if (!cancelled) setDetectedRole(d.role || null);
+      } catch {
+        if (!cancelled) setDetectedRole(null);
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [form.email]);
+
+  const isAdminAccount = ['super_admin', 'organiser'].includes(detectedRole);
 
   // Already signed in? Send staff straight to their dashboard.
   useEffect(() => {
@@ -175,9 +197,15 @@ export default function StaffLogin() {
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '24px' }}>
-            <a href="/" style={{ color: '#8b92a8', fontSize: '13px', textDecoration: 'none' }}>
-              ← Back to TiketFlow
-            </a>
+            {isAdminAccount ? (
+              <a href="/admin/login" style={{ color: '#8b92a8', fontSize: '13px', textDecoration: 'none' }}>
+                ← Back to Admin Login
+              </a>
+            ) : (
+              <a href="/" style={{ color: '#8b92a8', fontSize: '13px', textDecoration: 'none' }}>
+                ← Back to Home
+              </a>
+            )}
           </div>
         </div>
       </div>
