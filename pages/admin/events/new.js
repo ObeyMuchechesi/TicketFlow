@@ -187,11 +187,17 @@ export default function NewEvent() {
   function saveMedia(field, value) {
     setF(field, value);
     const seq = ++mediaSaveSeq.current;
+
+    // poster_image exists on every database (cover_image/theme_image only after
+    // the media migration). Keep it in sync so uploaded covers always persist
+    // and display, even on databases that haven't been migrated yet.
+    const posterSync = field === 'cover_image' ? { poster_image: value || '' } : {};
+
     if (!isEdit || !eventId) {
       try {
         const draft = JSON.parse(localStorage.getItem('tf_new_event_draft') || 'null');
         // Merge current form state on top of the draft so fresh edits aren't lost.
-        const nextForm = { ...(draft?.form || {}), ...form, [field]: value };
+        const nextForm = { ...(draft?.form || {}), ...form, [field]: value, ...posterSync };
         localStorage.setItem('tf_new_event_draft', JSON.stringify({ ...draft, form: nextForm }));
       } catch {}
       setMediaStatus('saved');
@@ -203,18 +209,24 @@ export default function NewEvent() {
     fetch(`/api/events/${eventId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: value || null }),
+      body: JSON.stringify({ [field]: value || null, ...posterSync }),
     })
       .then(r => r.json().then(d => ({ ok: r.ok, d })))
       .then(({ ok, d }) => {
         // Ignore stale responses from an older upload in the same field.
         if (seq !== mediaSaveSeq.current) return;
-        if (!ok && /ecocash_|bank_|cover_image|theme_image|column .* does not exist/.test(d?.error || '')) {
-          // DB not migrated for media columns — treat as saved in the form; it
-          // will be persisted on wizard submit via the graceful fallback path.
+        if (ok) {
           setMediaStatus('saved');
-        } else if (ok) {
-          setMediaStatus('saved');
+        } else if (/ecocash_|bank_|cover_image|theme_image|column .* does not exist/.test(d?.error || '')) {
+          // cover_image/theme_image columns are missing (unmigrated DB) but we
+          // sent poster_image as a fallback — verify it actually persisted.
+          fetch(`/api/events/${eventId}`)
+            .then(r => r.json())
+            .then(({ event }) => {
+              if (seq !== mediaSaveSeq.current) return;
+              setMediaStatus(event?.poster_image ? 'saved' : 'error');
+            })
+            .catch(() => setMediaStatus('error'));
         } else {
           setMediaStatus('error');
         }
@@ -306,7 +318,10 @@ export default function NewEvent() {
         time: form.time,
         venue: form.venue,
         description: form.description,
-        poster_image: form.poster_image,
+        // poster_image exists on every database — fall back to the uploaded
+        // cover so the image always persists and displays (unmigrated DBs
+        // strip cover_image but keep poster_image).
+        poster_image: form.poster_image || form.cover_image || '',
         cover_image: form.cover_image || null,
         theme_image: form.theme_image || null,
         theme_color: form.theme_color,
