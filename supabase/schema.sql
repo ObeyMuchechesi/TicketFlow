@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email          TEXT UNIQUE NOT NULL,
+  email          TEXT NOT NULL,
   password_hash  TEXT NOT NULL,
   full_name      TEXT NOT NULL,
   role           TEXT NOT NULL CHECK (role IN ('super_admin','organiser','gate_staff')),
@@ -18,6 +18,48 @@ CREATE TABLE IF NOT EXISTS users (
   assigned_event_id UUID REFERENCES events(id) ON DELETE SET NULL,
   created_at     TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Email uniqueness:
+--   * super_admin / organiser emails must stay unique.
+--   * gate staff may SHARE an email+password (one login per event) so a
+--     whole team can sign in simultaneously with the same credentials.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique_nonstaff
+  ON users(email)
+  WHERE role IS DISTINCT FROM 'gate_staff';
+
+-- Gate staff may share an email only within the SAME event.
+-- Inserting/updating a staff row whose email is already used by a
+-- DIFFERENT event (or by a non-staff account) is rejected.
+CREATE OR REPLACE FUNCTION enforce_staff_email_per_event()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.role = 'gate_staff' THEN
+    IF EXISTS (
+      SELECT 1 FROM users
+      WHERE email = NEW.email
+        AND id IS DISTINCT FROM NEW.id
+        AND (
+          -- same email on a different assigned event (NULL == NULL is equal,
+          -- so unassigned staff may share an email, but never mix assigned
+          -- and unassigned rows — that would make login scope ambiguous)
+          (role = 'gate_staff'
+            AND assigned_event_id IS DISTINCT FROM NEW.assigned_event_id)
+          OR
+          -- same email on a non-staff account
+          (role IS DISTINCT FROM 'gate_staff')
+        )
+    ) THEN
+      RAISE EXCEPTION 'This login is already in use for another event';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_staff_email_per_event ON users;
+CREATE TRIGGER trg_staff_email_per_event
+  BEFORE INSERT OR UPDATE OF email, role, assigned_event_id ON users
+  FOR EACH ROW EXECUTE FUNCTION enforce_staff_email_per_event();
 
 -- ─────────────────────────────────────────
 -- 2. EVENTS
@@ -167,9 +209,5 @@ CREATE INDEX IF NOT EXISTS idx_payments_ticket   ON payments(ticket_id);
 -- ─────────────────────────────────────────
 -- Password: Admin1234! (bcrypt hash — change immediately after setup)
 INSERT INTO users (email, password_hash, full_name, role)
-VALUES (
-  'admin@tiketflow.com',
-  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCg8bKSwAuGr3YFP3B7l0kq',
-  'Super Admin',
-  'super_admin'
-) ON CONFLICT (email) DO NOTHING;
+SELECT 'admin@tiketflow.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCg8bKSwAuGr3YFP3B7l0kq', 'Super Admin', 'super_admin'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@tiketflow.com');
