@@ -18,7 +18,12 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const user = await requireRole(req, 'super_admin', 'organiser');
-      const { event_name, slug, date, time, venue, description, poster_image, theme_color, capacity, ecocash_type, ecocash_code, ecocash_phone } = req.body;
+      const {
+        event_name, slug, date, time, venue, description, poster_image,
+        cover_image, theme_image, theme_color, capacity,
+        ecocash_type, ecocash_code, ecocash_phone,
+        bank_name, bank_account_name, bank_account_number,
+      } = req.body;
       if (!event_name || !slug || !date || !venue) return res.status(400).json({ error: 'Missing required fields' });
 
       const basePayload = {
@@ -30,16 +35,24 @@ export default async function handler(req, res) {
         status: 'draft',
       };
 
-      let { data, error } = await supabase.from('events').insert({
+      const mediaPayload = {
         ...basePayload,
+        cover_image: cover_image || null,
+        theme_image: theme_image || null,
         ecocash_type: ecocash_type || 'none',
         ecocash_code: ecocash_code || null,
         ecocash_phone: ecocash_phone || null,
-      }).select().single();
+        bank_name: bank_name || null,
+        bank_account_name: bank_account_name || null,
+        bank_account_number: bank_account_number || null,
+      };
+
+      let { data, error } = await supabase.from('events').insert(mediaPayload).select().single();
 
       // Graceful fallback: if the database hasn't been migrated with the
-      // EcoCash columns yet, retry without them so event creation still works.
-      if (error && /ecocash_|column .* does not exist/.test(error.message)) {
+      // EcoCash / bank / media columns yet, retry without them so event
+      // creation still works.
+      if (error && /ecocash_|bank_|cover_image|theme_image|column .* does not exist/.test(error.message)) {
         ({ data, error } = await supabase.from('events').insert(basePayload).select().single());
       }
 
@@ -52,3 +65,12 @@ export default async function handler(req, res) {
 
   res.status(405).end();
 }
+
+export const config = {
+  api: {
+    bodyParser: {
+      // Cover/theme images are uploaded as base64 data URLs
+      sizeLimit: '10mb',
+    },
+  },
+};

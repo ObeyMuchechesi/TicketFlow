@@ -1,7 +1,7 @@
 import { getServiceClient } from '../../../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { buildEcocashShortcode, generateEcocashReference, dialableShortcode } from '../../../lib/ecocash';
-import { sendTicketConfirmation } from '../../../lib/tickets';
+import { sendTicketConfirmation, sendTicketWhatsApp } from '../../../lib/tickets';
 
 const MAX_QUANTITY = 50;
 
@@ -39,7 +39,8 @@ export default async function handler(req, res) {
     // SECURITY: paid tickets must go through a real payment method. Deriving the
     // flow from price means a client can never mint paid tickets for free by
     // sending `paymentMethod: 'free'` — reject anything that isn't a valid flow.
-    if (!isFree && paymentMethod !== 'stripe' && paymentMethod !== 'ecocash') {
+    const isBankTransfer = paymentMethod === 'bank_transfer';
+    if (!isFree && paymentMethod !== 'stripe' && paymentMethod !== 'ecocash' && !isBankTransfer) {
       return res.status(400).json({ error: 'Invalid payment method for this ticket' });
     }
 
@@ -133,6 +134,31 @@ export default async function handler(req, res) {
       return res.json({ checkoutUrl: session.url });
     }
 
+    // Bank Transfer: verify the organiser has shared bank details BEFORE
+    // creating any tickets — same principle as the EcoCash check below, so we
+    // never mint tickets for a payment method the event isn't set up for.
+    let bankTransfer = null;
+    if (!isFree && paymentMethod === 'bank_transfer') {
+      const { data: event } = await supabase
+        .from('events')
+        .select('bank_name, bank_account_name, bank_account_number')
+        .eq('id', eventId)
+        .single();
+
+      bankTransfer = {
+        configured: Boolean(event?.bank_account_number),
+        bank_name: event?.bank_name || null,
+        bank_account_name: event?.bank_account_name || null,
+        bank_account_number: event?.bank_account_number || null,
+      };
+
+      if (!bankTransfer.configured) {
+        return res.status(400).json({
+          error: 'Bank transfer is not configured for this event yet. Please pay by card or EcoCash.',
+        });
+      }
+    }
+
     // EcoCash: auto-generate the USSD payment instructions. We validate the
     // organiser's config BEFORE creating any tickets so we never mint unpaid
     // tickets the customer can't actually pay for.
@@ -209,6 +235,12 @@ export default async function handler(req, res) {
 
     // Record payment ONLY for paid tickets — free reservations create no
     // payment record (revenue stays $0.00).
+    let paymentMethodForRecord = paymentMethod;
+    if (isBankTransfer) {
+      // Bank transfers are completed manually by the organiser after the
+      // buyer confirms payment — record the transaction reference.
+      paymentMethodForRecord = 'bank_transfer';
+    }
     if (!isFree) {
       const { data: firstTicket } = await supabase.from('tickets').select('id').eq('qr_code_token', tokens[0]).single();
       if (firstTicket) {
@@ -216,7 +248,7 @@ export default async function handler(req, res) {
           ticket_id: firstTicket.id,
           amount: total,
           currency: 'USD',
-          payment_method: paymentMethod,
+          payment_method: paymentMethodForRecord,
           status: paymentMethod === 'ecocash' ? 'pending' : 'completed',
           transaction_ref: ecocash?.reference || null,
           paid_at: new Date().toISOString(),
@@ -224,17 +256,27 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fire-and-forget digital ticket email — never blocks the reservation response
-    Promise.all([
+    // Fire-and-forget digital ticket email + WhatsApp handoff — never blocks
+    // the reservation response
+    const delivery = Promise.all([
       supabase.from('events').select('event_name, date, time, venue').eq('id', eventId).single(),
       supabase.from('tickets').select('*').eq('qr_code_token', tokens[0]).single(),
-    ]).then(([evRes, tkRes]) => {
+    ]).then(async ([evRes, tkRes]) => {
       if (evRes.data && tkRes.data) {
         sendTicketConfirmation({ ticket: tkRes.data, event: evRes.data, ticketType: tt, isFree });
+        return sendTicketWhatsApp({ ticket: tkRes.data, event: evRes.data, ticketType: tt, isFree });
       }
-    }).catch(err => console.error('Ticket email failed:', err));
+      return null;
+    }).catch(err => {
+      console.error('Ticket delivery failed:', err);
+      return null;
+    });
 
-    return res.json({ success: true, tokens, orderId: tokens[0], ecocash, free: isFree });
+    // Await the WhatsApp handoff URL so we can return it to the buyer — the
+    // email send stays fire-and-forget.
+    const whatsappUrl = await delivery;
+
+    return res.json({ success: true, tokens, orderId: tokens[0], ecocash, free: isFree, whatsappUrl });
   } catch (err) {
     console.error('Purchase error:', err);
     return res.status(500).json({ error: 'Purchase failed. Please try again.' });

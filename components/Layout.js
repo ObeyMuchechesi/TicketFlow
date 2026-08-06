@@ -149,7 +149,7 @@ export default function Layout({ children, title = 'TiketFlow', description = 'P
                 <h4>Support</h4>
                 <a href="#about">About Us</a>
                 <a href="mailto:support@tiketflow.com">Contact</a>
-                <a href="#">Help Center</a>
+                <a href="/ticket/recover">Recover a Lost Ticket</a>
                 <a href="#">FAQ</a>
               </div>
 

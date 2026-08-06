@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
+import { buildTiketFlowWhatsAppMessage, buildWhatsAppHandoffUrl } from '../../lib/tickets';
 import { Apple, Smartphone, MessageCircle, Mail, Link2, Printer, Check, ArrowLeft, TicketX } from 'lucide-react';
 
 export default function TicketPage({ ticket, event, ticketType, error: serverError }) {
@@ -47,7 +48,9 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
 
   const ticketUrl = `${siteUrl}/ticket/${ticket.qr_code_token}`;
   const shareText = encodeURIComponent(`I have a ticket for ${event?.event_name}! View it here:`);
-  const whatsappUrl = `https://wa.me/?text=${shareText}%20${encodeURIComponent(ticketUrl)}`;
+  // WhatsApp handoff branded as TiketFlow, addressed to the buyer's own number
+  const whatsappMessage = buildTiketFlowWhatsAppMessage({ ticket, event, ticketType });
+  const whatsappUrl = buildWhatsAppHandoffUrl({ phone: ticket.buyer_phone, message: whatsappMessage });
   const emailSubject = encodeURIComponent(`My Ticket: ${event?.event_name}`);
   const emailBody = encodeURIComponent(`View my ticket at: ${ticketUrl}`);
   const emailUrl = `mailto:?subject=${emailSubject}&body=${emailBody}`;
@@ -233,6 +236,14 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
             onClick={() => router.push('/')}
           >
             <ArrowLeft size={14} strokeWidth={2} /> Back to Events
+          </button>
+
+          <button
+            className="tf-btn tf-btn-ghost"
+            style={{ width: '100%', color: 'var(--text-tertiary)', fontSize: '12px' }}
+            onClick={() => router.push('/ticket/recover')}
+          >
+            Lost your ticket? Recover it here
           </button>
         </div>
       </div>

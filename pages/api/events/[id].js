@@ -24,10 +24,13 @@ export default async function handler(req, res) {
 
       let { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single();
 
-      // Graceful fallback for databases not yet migrated with EcoCash columns
-      if (error && /ecocash_|column .* does not exist/.test(error.message)) {
+      // Graceful fallback for databases not yet migrated with EcoCash / bank /
+      // media columns
+      if (error && /ecocash_|bank_|cover_image|theme_image|column .* does not exist/.test(error.message)) {
         const safe = { ...updates };
         delete safe.ecocash_type; delete safe.ecocash_code; delete safe.ecocash_phone;
+        delete safe.bank_name; delete safe.bank_account_name; delete safe.bank_account_number;
+        delete safe.cover_image; delete safe.theme_image;
         ({ data, error } = await supabase.from('events').update(safe).eq('id', id).select().single());
       }
 
@@ -47,3 +50,12 @@ export default async function handler(req, res) {
 
   res.status(405).end();
 }
+
+export const config = {
+  api: {
+    bodyParser: {
+      // Cover/theme images are uploaded as base64 data URLs
+      sizeLimit: '10mb',
+    },
+  },
+};

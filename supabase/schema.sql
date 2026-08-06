@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS events (
   venue             TEXT NOT NULL,
   description       TEXT,
   poster_image      TEXT,
+  cover_image       TEXT,
+  theme_image       TEXT,
   performer_images  JSONB DEFAULT '[]',
   theme_color       TEXT DEFAULT '#e94560',
   capacity          INTEGER DEFAULT 0,
@@ -39,6 +41,9 @@ CREATE TABLE IF NOT EXISTS events (
   ecocash_type      TEXT CHECK (ecocash_type IN ('biller','agent','none')),
   ecocash_code      TEXT,
   ecocash_phone     TEXT,
+  bank_name         TEXT,
+  bank_account_name TEXT,
+  bank_account_number TEXT,
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -98,7 +103,7 @@ CREATE TABLE IF NOT EXISTS payments (
   amount           DECIMAL(10,2) NOT NULL,
   currency         TEXT DEFAULT 'USD',
   payment_method   TEXT NOT NULL
-                     CHECK (payment_method IN ('ecocash','visa','mastercard','stripe','paypal')),
+                     CHECK (payment_method IN ('ecocash','visa','mastercard','stripe','paypal','bank_transfer')),
   transaction_ref  TEXT,
   status           TEXT NOT NULL DEFAULT 'pending'
                      CHECK (status IN ('pending','completed','failed','refunded')),

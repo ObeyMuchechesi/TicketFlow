@@ -159,8 +159,8 @@ export default function AdminEvents() {
                 onClick={() => router.push(`/admin/events/${ev.id}`)}
               >
                 <div className="adm-event-card-poster" style={{ background: GRADIENTS[i % GRADIENTS.length] }}>
-                  {ev.poster_image ? (
-                    <img src={ev.poster_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {(ev.cover_image || ev.poster_image) ? (
+                    <img src={ev.cover_image || ev.poster_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <CalendarDays size={40} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.9)' }} />}
                   <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px' }}>
                     {ev.isFree && <Badge variant="success">FREE</Badge>}

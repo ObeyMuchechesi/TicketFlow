@@ -6,7 +6,7 @@ import { buildEcocashShortcode } from '../../../lib/ecocash';
 import {
   FileText, Palette, Ticket, MapPin, CalendarDays, CreditCard, Rocket, AlertCircle,
   PartyPopper, DollarSign, Zap, Smartphone, Landmark, Banknote, X, User, Users, Map,
-  Loader2, CheckCircle2, AlertTriangle, Save, Gift,
+  Loader2, CheckCircle2, AlertTriangle, Save, Gift, Image as ImageIcon,
 } from 'lucide-react';
 
 const WIZARD_STEPS = [
@@ -43,6 +43,8 @@ export default function NewEvent() {
     venue: '',
     description: '',
     poster_image: '',
+    cover_image: '',
+    theme_image: '',
     theme_color: '#e94560',
     capacity: '',
     venue_description: '',
@@ -58,6 +60,9 @@ export default function NewEvent() {
     ecocash_type: 'none',
     ecocash_code: '',
     ecocash_phone: '',
+    bank_name: '',
+    bank_account_name: '',
+    bank_account_number: '',
     status: 'draft',
   });
   const [ticketTypes, setTicketTypes] = useState([
@@ -174,12 +179,17 @@ export default function NewEvent() {
         venue: form.venue,
         description: form.description,
         poster_image: form.poster_image,
+        cover_image: form.cover_image || null,
+        theme_image: form.theme_image || null,
         theme_color: form.theme_color,
         capacity: form.capacity,
         status: form.status,
         ecocash_type: form.ecocash_type,
         ecocash_code: form.ecocash_code,
         ecocash_phone: form.ecocash_phone,
+        bank_name: form.bank_name || null,
+        bank_account_name: form.bank_account_name || null,
+        bank_account_number: form.bank_account_number || null,
       };
       const res = await fetch('/api/events', {
         method: 'POST',
@@ -473,19 +483,154 @@ function StepBasicInfo({ form, setF, errors }) {
   );
 }
 
+// Gallery image uploader — reads the file client-side, compresses it to a
+// reasonable size and stores it as a base64 data URL (no storage service needed).
+function ImageUploader({ label, description, value, onChange, aspect = '16/9' }) {
+  const fileRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handleFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    setBusy(true);
+    try {
+      const dataUrl = await compressImage(file, 1400, 0.82);
+      onChange(dataUrl);
+    } catch {
+      // fall back to raw read if canvas fails
+      const reader = new FileReader();
+      reader.onload = () => onChange(reader.result);
+      reader.readAsDataURL(file);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="field-group">
+      <label>{label}</label>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={e => {
+          handleFile(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      <div
+        onClick={() => fileRef.current?.click()}
+        style={{
+          borderRadius: '16px',
+          overflow: 'hidden',
+          border: value
+            ? '1px solid var(--panel-border)'
+            : '2px dashed var(--panel-hover-border)',
+          aspectRatio: aspect,
+          background: value ? 'transparent' : 'var(--panel-bg)',
+          cursor: 'pointer',
+          position: 'relative',
+          transition: 'border-color 0.2s',
+        }}
+        onMouseEnter={e => { if (!value) e.currentTarget.style.borderColor = 'var(--accent)'; }}
+        onMouseLeave={e => { if (!value) e.currentTarget.style.borderColor = 'var(--panel-hover-border)'; }}
+      >
+        {busy ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
+            <Loader2 size={26} style={{ animation: 'spin-slow 0.8s linear infinite', color: 'var(--accent-primary)' }} />
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Processing image…</span>
+          </div>
+        ) : value ? (
+          <>
+            <img src={value} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start',
+              padding: '14px', background: 'linear-gradient(180deg, transparent 55%, rgba(0,0,0,0.55))',
+            }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Click to change</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '10px', padding: '16px', textAlign: 'center' }}>
+            <div style={{
+              width: '52px', height: '52px', borderRadius: '16px',
+              background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <ImageIcon size={24} strokeWidth={1.8} style={{ color: 'var(--accent-primary)' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>Upload from gallery</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '320px', margin: '0 auto', lineHeight: 1.5 }}>{description}</div>
+            </div>
+            <span className="tf-btn tf-btn-primary" style={{ padding: '8px 18px', fontSize: '12px' }}>Choose Image</span>
+          </div>
+        )}
+      </div>
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          style={{ marginTop: '8px', fontSize: '12px', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+        >
+          ✕ Remove image
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Read a file and downscale to maxDim px, output as a compressed JPEG data URL.
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function StepBranding({ form, setF, errors }) {
   return (
     <Wrapper>
+      <ImageUploader
+        label="Cover Photo"
+        description="The main banner shown on your event page and event cards — pick from your gallery."
+        value={form.cover_image}
+        onChange={v => setF('cover_image', v)}
+        aspect="16/9"
+      />
+
+      <ImageUploader
+        label="Theme Image"
+        description="An optional background texture/atmosphere image that sets the mood of your event page."
+        value={form.theme_image}
+        onChange={v => setF('theme_image', v)}
+        aspect="21/9"
+      />
+
       <Input
-        label="Poster Image URL"
+        label="Poster Image URL (optional)"
         type="url"
         placeholder="https://yourbucket.s3.amazonaws.com/poster.jpg"
         value={form.poster_image}
         onChange={e => setF('poster_image', e.target.value)}
-        helper="Recommended: 1200x630 · JPG or PNG"
+        helper="Alternative to uploading — link to an external image"
       />
 
-      {form.poster_image && (
+      {form.poster_image && !form.cover_image && (
         <div style={{
           borderRadius: '16px',
           overflow: 'hidden',
@@ -787,6 +932,13 @@ function StepTickets({ ticketTypes, eventType, setEventTypeMode, addTicketType, 
       </Button>
     </Wrapper>
   );
+}
+
+function getPaymentSummary(form) {
+  const parts = ['Stripe'];
+  if (form.ecocash_type && form.ecocash_type !== 'none' && form.ecocash_code) parts.push('EcoCash');
+  if (form.bank_name && form.bank_account_number) parts.push('Bank');
+  return parts.join(' · ');
 }
 
 function StepVenue({ form, setF }) {
@@ -1117,6 +1269,51 @@ function StepPayments({ form, setF }) {
         </div>
       </Card>
 
+      {/* Bank Transfer Configuration */}
+      <Card style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(99,102,241,0.05), rgba(59,130,246,0.05))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}><Landmark size={22} strokeWidth={2} style={{ color: '#fff' }} /></div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '15px', fontWeight: 700 }}>Bank Account (Manual Transfer)</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              Optional · Show customers your bank details for manual payments
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+          <Input
+            label="Bank Name"
+            placeholder="e.g. CBZ Bank / Stanbic / EcoBank"
+            value={form.bank_name}
+            onChange={e => setF('bank_name', e.target.value)}
+            helper="Where customers should transfer the money"
+          />
+          <Input
+            label="Account Name"
+            placeholder="e.g. EverAfter Hub (Pvt) Ltd"
+            value={form.bank_account_name}
+            onChange={e => setF('bank_account_name', e.target.value)}
+          />
+          <Input
+            label="Account Number"
+            placeholder="e.g. 01234567890123"
+            value={form.bank_account_number}
+            onChange={e => setF('bank_account_number', e.target.value)}
+            helper="Customers will see these details at checkout"
+          />
+        </div>
+      </Card>
+
       <div className="field-group">
         <label>Refund Policy</label>
         <textarea
@@ -1192,7 +1389,7 @@ function StepPublish({ form, ticketTypes, eventType, setF, onEdit }) {
           ['Tickets', `${validTickets.length} tiers`, 2, 'success'],
           ['Venue', form.venue_description ? '✓' : '—', 3, 'warning'],
           ['Schedule', form.schedule_notes ? '✓' : '—', 4, 'primary'],
-          ['Payments', 'Stripe', 5, 'info'],
+          ['Payments', getPaymentSummary(form), 5, 'info'],
         ].map(([label, val, step, variant]) => (
           <Card
             key={label}

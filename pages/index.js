@@ -372,7 +372,7 @@ export default function Home({ events: serverEvents }) {
           >
             <div style={{ position: 'relative', minHeight: '360px' }}>
               <img
-                src={featuredEvent.poster_image}
+                src={featuredEvent.cover_image || featuredEvent.poster_image}
                 alt={featuredEvent.event_name}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
               />
@@ -643,7 +643,7 @@ function PremiumEventCard({ event, formatDate, minPrice, favourited, onToggleFav
     <div className="tf-event-card animate-fade-in-up" onClick={onClick}>
       <div className="tf-event-card-poster">
         <img
-          src={event.poster_image || 'https://images.unsplash.com/photo-1540039155733-5bb30b4259d6?w=700&q=80'}
+          src={event.cover_image || event.poster_image || 'https://images.unsplash.com/photo-1540039155733-5bb30b4259d6?w=700&q=80'}
           alt={event.event_name}
           loading="lazy"
         />
@@ -750,7 +750,7 @@ export async function getServerSideProps() {
     const { data: events, error } = await supabase
       .from('events')
       .select(`
-        id, slug, event_name, date, time, venue, poster_image, status, theme_color, description,
+        id, slug, event_name, date, time, venue, poster_image, cover_image, status, theme_color, description,
         ticket_types (id, name, price, color, quantity_available, quantity_sold)
       `)
       .eq('status', 'published')

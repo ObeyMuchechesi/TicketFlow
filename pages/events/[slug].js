@@ -6,6 +6,7 @@ import {
   CalendarDays, Clock, MapPin, MessageCircle, Link2, Ticket, Image, FileText,
   Hourglass, Crown, HelpCircle, ScrollText, Sparkles, Gift, CreditCard, Smartphone,
   CheckCircle2, Copy, Share2, AlertTriangle, Loader2, Flame, TrendingUp, Mail, Phone,
+  Landmark, MessageCircleMore,
 } from 'lucide-react';
 
 const MOCK_GALLERY = [
@@ -104,6 +105,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
   const event = serverEvent || DEMO_EVENT;
   const recommended = serverRecommended || [DEMO_EVENT];
   const accent = event.theme_color || '#a855f7';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app';
 
   const [step, setStep] = useState('select');
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -119,6 +121,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
   const [error, setError] = useState('');
   const [orderId, setOrderId] = useState(null);
   const [tokens, setTokens] = useState([]);
+  const [whatsappUrl, setWhatsappUrl] = useState(null);
   const [ecocashData, setEcocashData] = useState(null);
   const [ecocashCopied, setEcocashCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState({});
@@ -246,11 +249,13 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
         setOrderId(data.orderId);
         setTokens(data.tokens || []);
         setEcocashData(data.ecocash || null);
+        setWhatsappUrl(data.whatsappUrl || null);
         setStep('ecocash');
       } else {
-        // Free reservations land directly on the confirmation step
+        // Free reservations & bank transfers land directly on the confirmation step
         setOrderId(data.orderId);
         setTokens(data.tokens || []);
+        setWhatsappUrl(data.whatsappUrl || null);
         setStep('confirm');
       }
     } catch (err) {
@@ -298,7 +303,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
       {/* HERO BANNER - Large mesh-gradient */}
       <section className="mesh-gradient animate-gradient-bg" style={{
         minHeight: 'clamp(400px, 60vh, 600px)',
-        backgroundImage: `url(${event.poster_image})`,
+        backgroundImage: `url(${event.cover_image || event.poster_image})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         position: 'relative',
@@ -310,6 +315,18 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
           background: `linear-gradient(180deg, rgba(0,0,0,0.2) 0%, ${accent}22 40%, rgba(0,0,0,0.95) 100%)`,
           backdropFilter: 'saturate(1.2)'
         }} />
+        {event.theme_image && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `url(${event.theme_image})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.35,
+            mixBlendMode: 'screen',
+            animation: 'ken-burns 30s ease-in-out infinite alternate',
+            pointerEvents: 'none',
+          }} />
+        )}
         <div style={{
           position: 'absolute', top: '-20%', left: '-10%',
           width: '500px', height: '500px', borderRadius: '50%',
@@ -1075,6 +1092,19 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                           transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                         }}
                       ><Smartphone size={15} strokeWidth={2} /> EcoCash</button>
+                      {(event.bank_name || event.bank_account_number) && (
+                        <button
+                          type="button" onClick={() => setPayMethod('bank_transfer')}
+                          style={{
+                            padding: '14px', borderRadius: '12px',
+                            background: payMethod === 'bank_transfer' ? `${accent}22` : 'var(--panel-bg)',
+                            border: `2px solid ${payMethod === 'bank_transfer' ? accent : 'var(--panel-border)'}`,
+                            color: 'var(--text)', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                            transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                            gridColumn: (event.bank_name || event.bank_account_number) && !event.bank_name ? 'span 2' : undefined,
+                          }}
+                        ><Landmark size={15} strokeWidth={2} /> Bank Transfer</button>
+                      )}
                     </div>
 
                     {payMethod === 'stripe' && (
@@ -1100,6 +1130,35 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                           className="premium-input" style={{ padding: '10px 14px', fontSize: '13px', borderRadius: '10px', textAlign: 'center' }} />
                         <div style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '8px', textAlign: 'center' }}>
                           📲 After payment, your EcoCash prompt is sent to this number — enter your PIN to confirm.
+                        </div>
+                      </div>
+                    )}
+
+                    {payMethod === 'bank_transfer' && (
+                      <div className="glass" style={{ padding: '18px', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.25)', background: 'linear-gradient(160deg, rgba(99,102,241,0.06), rgba(59,130,246,0.04))' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', color: 'var(--text)' }}>
+                          Transfer to this account
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                            <span style={{ color: 'var(--text-dimmed)' }}>Bank</span>
+                            <strong>{event.bank_name || '—'}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                            <span style={{ color: 'var(--text-dimmed)' }}>Account Name</span>
+                            <strong>{event.bank_account_name || '—'}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                            <span style={{ color: 'var(--text-dimmed)' }}>Account Number</span>
+                            <strong style={{ fontFamily: 'monospace' }}>{event.bank_account_number || '—'}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                            <span style={{ color: 'var(--text-dimmed)' }}>Amount</span>
+                            <strong style={{ color: accent }}>${total.toFixed(2)}</strong>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-dimmed)', marginTop: '12px', lineHeight: 1.5 }}>
+                          After transferring, confirm below and your tickets will be issued instantly. The organiser may verify the payment.
                         </div>
                       </div>
                     )}
@@ -1139,7 +1198,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       className="premium-btn-primary pulse-glow"
                       style={{ flex: 2, padding: '14px', fontSize: '14px', background: gradientAccent }}
                     >
-                      {loading ? (<><Loader2 size={16} style={{ animation: 'spin-slow 0.8s linear infinite' }} /> Processing...</>) : payMethod === 'ecocash' ? `Pay $${total.toFixed(2)} with EcoCash` : `Pay $${total.toFixed(2)}`}
+                      {loading ? (<><Loader2 size={16} style={{ animation: 'spin-slow 0.8s linear infinite' }} /> Processing...</>) : payMethod === 'ecocash' ? `Pay $${total.toFixed(2)} with EcoCash` : payMethod === 'bank_transfer' ? 'I Have Transferred — Get Tickets' : `Pay $${total.toFixed(2)}`}
                     </Button>
                   </div>
                 </div>
@@ -1356,6 +1415,42 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                         <div style={{ fontFamily: 'monospace', fontSize: '13px', color: accent, fontWeight: 600 }}>#{orderId}</div>
                       </div>
                     )}
+                  </div>
+
+                  {/* WhatsApp delivery — branded TiketFlow handoff */}
+                  <div className="glass" style={{
+                    padding: '18px', borderRadius: '14px', marginBottom: '14px',
+                    border: '1px solid rgba(37,211,102,0.3)',
+                    background: 'linear-gradient(160deg, rgba(37,211,102,0.08), rgba(37,211,102,0.03))',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <div style={{
+                        width: '38px', height: '38px', borderRadius: '11px',
+                        background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}><MessageCircleMore size={19} strokeWidth={2} style={{ color: '#fff' }} /></div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 800 }}>Get it on WhatsApp</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Sent by TiketFlow · with your ticket link
+                        </div>
+                      </div>
+                    </div>
+                    <a
+                      href={whatsappUrl || `https://wa.me/?text=${encodeURIComponent('My TiketFlow ticket is ready — view it here: ')}${tokens[0] ? '%20' + encodeURIComponent(`${siteUrl}/ticket/${tokens[0]}`) : ''}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="pulse-glow"
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                        padding: '12px', borderRadius: '12px', marginTop: '6px',
+                        background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                        color: '#fff', fontWeight: 800, fontSize: '13px', textDecoration: 'none',
+                        fontFamily: 'var(--font-display)',
+                      }}
+                    >
+                      <MessageCircleMore size={16} strokeWidth={2.25} /> Send my ticket to WhatsApp
+                    </a>
                   </div>
 
                   {/* Generated Ticket Links */}

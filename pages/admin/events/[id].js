@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
 import { Badge, Button, Progress, Skeleton, Input } from '../../../components/ui';
-import { ClipboardList, Ticket, Users, Zap, AlertCircle, CalendarDays, MapPin, ExternalLink, Search, Copy, PauseCircle, PlayCircle, RefreshCw, Mail, Archive, Download } from 'lucide-react';
+import { ClipboardList, Ticket, Users, Zap, AlertCircle, CalendarDays, MapPin, ExternalLink, Search, Copy, PauseCircle, PlayCircle, RefreshCw, Mail, Archive, Download, Smartphone, Landmark, Check, X } from 'lucide-react';
 
 const STATUS_COLORS = { published: '#10b981', draft: '#f59e0b', sold_out: '#ef4444', completed: '#6b7280', cancelled: '#ef4444' };
 const STATUS_MAP = { published: { variant: 'success', label: 'Live' }, draft: { variant: 'warning', label: 'Draft' }, sold_out: { variant: 'error', label: 'Sold Out' }, completed: { variant: 'info', label: 'Completed' }, cancelled: { variant: 'error', label: 'Cancelled' } };
@@ -156,8 +156,8 @@ export default function AdminEventDetail() {
               <div className="adm-chart-header">
                 <div className="adm-chart-title">Event Details</div>
               </div>
-              {event.poster_image && (
-                <img src={event.poster_image} alt="poster" style={{ width: '100%', maxHeight: '280px', objectFit: 'cover', borderRadius: '14px', marginBottom: '20px' }} />
+              {(event.cover_image || event.poster_image) && (
+                <img src={event.cover_image || event.poster_image} alt="poster" style={{ width: '100%', maxHeight: '280px', objectFit: 'cover', borderRadius: '14px', marginBottom: '20px' }} />
               )}
               <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '16px', fontSize: '14px' }}>
                 {event.description || 'No description provided.'}
@@ -201,6 +201,48 @@ export default function AdminEventDetail() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Payment Settings */}
+            <div className="adm-chart-card" style={{ marginTop: '20px' }}>
+              <div className="adm-chart-header">
+                <div className="adm-chart-title"><Zap size={14} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: '5px' }} />Payment Settings</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+                {/* EcoCash */}
+                <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-secondary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '8px' }}>
+                    <Smartphone size={14} strokeWidth={2} style={{ color: '#10b981' }} /> EcoCash
+                    {event.ecocash_type && event.ecocash_type !== 'none' ? <Check size={13} strokeWidth={2.5} style={{ color: '#10b981', marginLeft: 'auto' }} /> : <X size={13} strokeWidth={2.5} style={{ color: '#9ca3af', marginLeft: 'auto' }} />}
+                  </div>
+                  {event.ecocash_type && event.ecocash_type !== 'none' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', color: 'var(--text-secondary)' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Type</span><span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{event.ecocash_type} code</span>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Code</span><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{event.ecocash_code || '—'}</span>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Phone</span><span>{event.ecocash_phone || '—'}</span>
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>Not configured</span>
+                  )}
+                </div>
+
+                {/* Bank Transfer */}
+                <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-secondary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '8px' }}>
+                    <Landmark size={14} strokeWidth={2} style={{ color: '#6366f1' }} /> Bank Transfer
+                    {event.bank_account_number ? <Check size={13} strokeWidth={2.5} style={{ color: '#10b981', marginLeft: 'auto' }} /> : <X size={13} strokeWidth={2.5} style={{ color: '#9ca3af', marginLeft: 'auto' }} />}
+                  </div>
+                  {event.bank_account_number ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', color: 'var(--text-secondary)' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Bank</span><span style={{ fontWeight: 600 }}>{event.bank_name || '—'}</span>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Account</span><span>{event.bank_account_name || '—'}</span>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Number</span><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{event.bank_account_number}</span>
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>Not configured</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>

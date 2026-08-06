@@ -1,5 +1,5 @@
 import { getServiceClient } from '../../../lib/supabase';
-import { sendTicketConfirmation } from '../../../lib/tickets';
+import { sendTicketConfirmation, sendTicketWhatsApp } from '../../../lib/tickets';
 
 export default async function handler(req, res) {
   const { session_id } = req.query;
@@ -46,15 +46,17 @@ export default async function handler(req, res) {
       });
     }
 
-    // Fire-and-forget digital ticket email — never blocks the redirect
+    // Fire-and-forget digital ticket email + WhatsApp handoff — never blocks
+    // the redirect
     Promise.all([
       supabase.from('events').select('event_name, date, time, venue').eq('id', eventId).single(),
       supabase.from('tickets').select('*').eq('qr_code_token', tokens[0]).single(),
     ]).then(([evRes, tkRes]) => {
       if (evRes.data && tkRes.data) {
         sendTicketConfirmation({ ticket: tkRes.data, event: evRes.data, ticketType: tt });
+        sendTicketWhatsApp({ ticket: tkRes.data, event: evRes.data, ticketType: tt });
       }
-    }).catch(err => console.error('Ticket email failed:', err));
+    }).catch(err => console.error('Ticket delivery failed:', err));
 
     // Redirect to first ticket page
     return res.redirect(`/ticket/${tokens[0]}`);
