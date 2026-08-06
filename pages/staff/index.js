@@ -42,8 +42,9 @@ export default function StaffDashboard() {
       .catch(() => {});
   }, []);
 
+  // Staff only ever see the event(s) they are assigned to — never all events.
   useEffect(() => {
-    fetch('/api/events')
+    fetch('/api/staff/events')
       .then(r => r.json())
       .then(d => { setEvents(d.events || []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -54,7 +55,7 @@ export default function StaffDashboard() {
     router.push('/staff/login');
   }
 
-  const available = events.filter(e => e.status === 'published');
+  const available = events.filter(e => e.status === 'published' || e.status === 'sold_out');
 
   return (
     <>

@@ -33,7 +33,10 @@ const stepIcons = [FileText, Palette, Ticket, MapPin, CalendarDays, CreditCard, 
 
 export default function NewEvent() {
   const router = useRouter();
+  const isEdit = !!router.query.id;
+  const eventId = isEdit ? router.query.id : null;
   const [currentStep, setCurrentStep] = useState(0);
+  const [loadingEvent, setLoadingEvent] = useState(isEdit);
   const StepIcon = stepIcons[currentStep];
   const [form, setForm] = useState({
     event_name: '',
@@ -75,7 +78,71 @@ export default function NewEvent() {
   const [autosaveStatus, setAutosaveStatus] = useState('Saved');
   const autosaveTimer = useRef(null);
 
+  // Edit mode: load the existing event + its ticket types and prefill the wizard.
   useEffect(() => {
+    if (!router.isReady || !eventId) return;
+    setLoadingEvent(true);
+    setCurrentStep(0);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/events/${eventId}`);
+        const data = await res.json();
+        if (cancelled || !data.event) return;
+        const ev = data.event;
+        setForm(f => ({
+          ...f,
+          event_name: ev.event_name || '',
+          slug: ev.slug || '',
+          date: ev.date || '',
+          time: ev.time || '',
+          venue: ev.venue || '',
+          description: ev.description || '',
+          poster_image: ev.poster_image || '',
+          cover_image: ev.cover_image || '',
+          theme_image: ev.theme_image || '',
+          theme_color: ev.theme_color || '#e94560',
+          capacity: ev.capacity || '',
+          venue_description: ev.venue_description || '',
+          latitude: ev.latitude ?? '',
+          longitude: ev.longitude ?? '',
+          parking_info: ev.parking_info || '',
+          accessibility_info: ev.accessibility_info || '',
+          schedule_notes: ev.schedule_notes || '',
+          doors_open: ev.doors_open || '',
+          end_time: ev.end_time || '',
+          payment_methods: ev.payment_methods || 'stripe',
+          refund_policy: ev.refund_policy || '',
+          ecocash_type: ev.ecocash_type || 'none',
+          ecocash_code: ev.ecocash_code || '',
+          ecocash_phone: ev.ecocash_phone || '',
+          bank_name: ev.bank_name || '',
+          bank_account_name: ev.bank_account_name || '',
+          bank_account_number: ev.bank_account_number || '',
+          status: ev.status || 'draft',
+        }));
+        const types = (ev.ticket_types || []).map(tt => ({
+          id: tt.id,
+          name: tt.name || '',
+          price: String(tt.price ?? ''),
+          quantity_available: String(tt.quantity_available ?? ''),
+          color: tt.color || '#e94560',
+          max_per_person: tt.max_per_person != null ? String(tt.max_per_person) : '',
+          quantity_sold: Number(tt.quantity_sold || 0),
+        }));
+        if (types.length) {
+          setTicketTypes(types);
+          // A free event = every tier priced at $0 (default to paid otherwise)
+          setEventType(types.every(t => Number(t.price) === 0) ? 'free' : 'paid');
+        }
+      } catch {}
+      if (!cancelled) setLoadingEvent(false);
+    })();
+    return () => { cancelled = true; };
+  }, [eventId, router.isReady]);
+
+  useEffect(() => {
+    if (!router.isReady || isEdit) return; // never autosave over an existing event
     try {
       const saved = localStorage.getItem('tf_new_event_draft');
       if (saved) {
@@ -89,6 +156,7 @@ export default function NewEvent() {
   }, []);
 
   useEffect(() => {
+    if (isEdit) return;
     clearTimeout(autosaveTimer.current);
     setAutosaveStatus('Saving...');
     autosaveTimer.current = setTimeout(() => {
@@ -120,7 +188,14 @@ export default function NewEvent() {
     }
   }
   function removeTicketType(i) {
-    setTicketTypes(t => t.filter((_, idx) => idx !== i));
+    setTicketTypes(t => {
+      const tier = t[i];
+      if (isEdit && tier?.quantity_sold > 0) {
+        setError(`\"${tier.name || 'This tier'}\" has ${tier.quantity_sold} sold ticket${tier.quantity_sold === 1 ? '' : 's'} and cannot be removed. It stays available for existing buyers.`);
+        return t;
+      }
+      return t.filter((_, idx) => idx !== i);
+    });
   }
   function setTT(i, k, v) {
     setTicketTypes(t => t.map((tt, idx) => idx === i ? { ...tt, [k]: v } : tt));
@@ -191,32 +266,72 @@ export default function NewEvent() {
         bank_account_name: form.bank_account_name || null,
         bank_account_number: form.bank_account_number || null,
       };
-      const res = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submitForm),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Failed to create event'); setLoading(false); return; }
-      const eventId = data.event.id;
-      await Promise.all(
-        ticketTypes
-          .filter(t => t.name && t.quantity_available && (eventType === 'free' || (t.price !== '' && Number(t.price) >= 0)))
-          .map(t =>
-            fetch('/api/ticket-types', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                event_id: eventId,
-                name: t.name,
-                price: eventType === 'free' ? 0 : Number(t.price || 0),
-                quantity_available: Number(t.quantity_available),
-                color: t.color,
-                max_per_person: t.max_per_person,
-              }),
-            })
-          )
+
+      const validTiers = ticketTypes
+        .filter(t => t.name && t.quantity_available && (eventType === 'free' || (t.price !== '' && Number(t.price) >= 0)));
+
+      let eventId;
+      if (isEdit) {
+        // Update the existing event
+        const res = await fetch(`/api/events/${eventId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submitForm),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error || 'Failed to update event'); setLoading(false); return; }
+        eventId = data.event.id;
+      } else {
+        const res = await fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submitForm),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error || 'Failed to create event'); setLoading(false); return; }
+        eventId = data.event.id;
+      }
+
+      // Reconcile ticket tiers: update existing (with id), create new ones,
+      // and remove any previously-existing tiers that are no longer in the list.
+      const existing = (await (await fetch(`/api/events/${eventId}`)).json()).event?.ticket_types || [];
+      const existingIds = existing.map(t => t.id);
+      const keptIds = new Set(validTiers.map(t => t.id).filter(Boolean));
+      // Only delete tiers that have NO sold tickets — tiers with sales are
+      // protected server-side too (they stay available for existing buyers).
+      const removed = existingIds.filter(id =>
+        !keptIds.has(id) && !(Number(existing.find(t => t.id === id)?.quantity_sold || 0) > 0)
       );
+
+      await Promise.all(validTiers.map(t =>
+        fetch('/api/ticket-types', {
+          method: t.id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...(t.id ? { id: t.id } : { event_id: eventId }),
+            name: t.name,
+            price: eventType === 'free' ? 0 : Number(t.price || 0),
+            quantity_available: Number(t.quantity_available),
+            color: t.color,
+            max_per_person: t.max_per_person,
+          }),
+        })
+      ));
+
+      const deleteResults = await Promise.all(removed.map(id =>
+        fetch('/api/ticket-types', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        })
+      ));
+      for (const r of deleteResults) {
+        if (!r.ok) {
+          const msg = (await r.json().catch(() => ({}))).error;
+          if (msg) setError(msg);
+        }
+      }
+
       try { localStorage.removeItem('tf_new_event_draft'); } catch {}
       router.push(`/admin/events/${eventId}`);
     } catch {
@@ -225,8 +340,20 @@ export default function NewEvent() {
     }
   }
 
+  if (loadingEvent) {
+    return (
+      <AdminLayout title={isEdit ? 'Edit Event' : 'New Event'}>
+        <div style={{ padding: 'clamp(20px, 3vw, 40px)', maxWidth: '880px', margin: '0 auto' }}>
+          <div className="adm-skeleton" style={{ height: '48px', width: '260px', marginBottom: '20px' }} />
+          <div className="adm-skeleton" style={{ height: '120px', marginBottom: '20px' }} />
+          <div className="adm-skeleton" style={{ height: '400px' }} />
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
-    <AdminLayout title="New Event">
+    <AdminLayout title={isEdit ? 'Edit Event' : 'New Event'}>
       <div style={{ padding: 'clamp(20px, 3vw, 40px)', maxWidth: '880px', margin: '0 auto' }}>
         <div style={{ marginBottom: '24px' }} className="fade-in-up">
           <button
@@ -257,12 +384,16 @@ export default function NewEvent() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-              }}>Create New Event</h1>
+              }}>{isEdit ? 'Edit Event' : 'Create New Event'}</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-                Step {currentStep + 1} of {WIZARD_STEPS.length} ·{' '}
-                <span style={{ color: autosaveStatus === 'Saving...' ? 'var(--warning)' : 'var(--success)', fontWeight: 600 }}>
-                  {autosaveStatus === 'Saving...' ? <Loader2 size={12} style={{ animation: 'spin-slow 0.8s linear infinite', verticalAlign: '-2px' }} /> : <CheckCircle2 size={12} style={{ verticalAlign: '-2px' }} />}{' '}{autosaveStatus}
-                </span>
+                {isEdit
+                  ? 'Update the event details and ticket tiers.'
+                  : (<>
+                      Step {currentStep + 1} of {WIZARD_STEPS.length} ·{' '}
+                      <span style={{ color: autosaveStatus === 'Saving...' ? 'var(--warning)' : 'var(--success)', fontWeight: 600 }}>
+                        {autosaveStatus === 'Saving...' ? <Loader2 size={12} style={{ animation: 'spin-slow 0.8s linear infinite', verticalAlign: '-2px' }} /> : <CheckCircle2 size={12} style={{ verticalAlign: '-2px' }} />}{' '}{autosaveStatus}
+                      </span>
+                    </>)}
               </p>
             </div>
             <Badge variant={stepBadgeVariants[currentStep]} icon={<StepIcon size={14} strokeWidth={2} />}>
@@ -363,7 +494,7 @@ export default function NewEvent() {
               </Button>
             ) : (
               <Button type="submit" variant="primary" fullWidth loading={loading}>
-                {loading ? 'Creating...' : (form.status === 'published' ? 'Publish Event' : 'Save as Draft')}
+                {loading ? (isEdit ? 'Saving...' : 'Creating...') : isEdit ? 'Save Changes' : (form.status === 'published' ? 'Publish Event' : 'Save as Draft')}
               </Button>
             )}
           </div>
@@ -828,16 +959,25 @@ function StepTickets({ ticketTypes, eventType, setEventTypeMode, addTicketType, 
                   </div>
                 </div>
               </div>
-              {ticketTypes.length > 1 && (
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  onClick={() => removeTicketType(i)}
-                >
-                  Remove
-                </Button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {tt.quantity_sold > 0 && (
+                  <Badge variant="info" style={{ fontSize: '10px', padding: '2px 8px' }}>
+                    {tt.quantity_sold} sold
+                  </Badge>
+                )}
+                {ticketTypes.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    disabled={tt.quantity_sold > 0}
+                    title={tt.quantity_sold > 0 ? 'This tier has sold tickets and cannot be removed' : undefined}
+                    onClick={() => removeTicketType(i)}
+                  >
+                    {tt.quantity_sold > 0 ? 'Locked' : 'Remove'}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>

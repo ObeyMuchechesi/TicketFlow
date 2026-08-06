@@ -11,6 +11,16 @@ export default async function handler(req, res) {
 
     const supabase = getServiceClient();
 
+    // Gate staff may ONLY scan for the single event they are assigned to.
+    // If the DB hasn't been migrated with assigned_event_id, scoping is not
+    // available yet — allow (matches the pre-migration behaviour).
+    if (staff.role === 'gate_staff') {
+      const { data: profile } = await supabase.from('users').select('assigned_event_id').eq('id', staff.userId).single();
+      if (profile && profile.assigned_event_id !== eventId) {
+        return res.status(403).json({ error: 'You are not assigned to this event' });
+      }
+    }
+
     const { data: ticket } = await supabase
       .from('tickets')
       .select('*, ticket_types (name, color), events (event_name)')

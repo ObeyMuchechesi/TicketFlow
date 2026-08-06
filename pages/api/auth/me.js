@@ -7,11 +7,20 @@ export default async function handler(req, res) {
 
   try {
     const supabase = getServiceClient();
-    const { data: user } = await supabase
+    let { data: user } = await supabase
       .from('users')
-      .select('id, email, full_name, role, phone')
+      .select('id, email, full_name, role, phone, assigned_event_id')
       .eq('id', session.userId)
       .single();
+
+    // Fallback for databases not yet migrated with assigned_event_id
+    if (!user) {
+      ({ data: user } = await supabase
+        .from('users')
+        .select('id, email, full_name, role, phone')
+        .eq('id', session.userId)
+        .single());
+    }
 
     if (!user || user.is_active === false) {
       return res.status(401).json({ user: null });

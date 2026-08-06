@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
 import { Badge, Button, Progress, Skeleton } from '../../../components/ui';
-import { Search, CalendarDays, MapPin, PartyPopper, Sparkles, Download } from 'lucide-react';
+import { Search, CalendarDays, MapPin, PartyPopper, Sparkles, Download, Pencil } from 'lucide-react';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
@@ -162,9 +162,22 @@ export default function AdminEvents() {
                   {(ev.cover_image || ev.poster_image) ? (
                     <img src={ev.cover_image || ev.poster_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <CalendarDays size={40} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.9)' }} />}
-                  <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px' }}>
+                  <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                     {ev.isFree && <Badge variant="success">FREE</Badge>}
                     <Badge variant={status.variant}>{status.label}</Badge>
+                    <button
+                      title="Edit event"
+                      onClick={(e) => { e.stopPropagation(); router.push(`/admin/events/new?id=${ev.id}`); }}
+                      style={{
+                        width: '30px', height: '30px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                        background: 'rgba(255,255,255,0.9)', color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 4px 14px rgba(0,0,0,0.25)', transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                      <Pencil size={13} strokeWidth={2.25} />
+                    </button>
                   </div>
                 </div>
 

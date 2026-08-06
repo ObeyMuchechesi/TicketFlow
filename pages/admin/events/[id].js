@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../../components/AdminLayout';
 import { Badge, Button, Progress, Skeleton, Input } from '../../../components/ui';
-import { ClipboardList, Ticket, Users, Zap, AlertCircle, CalendarDays, MapPin, ExternalLink, Search, Copy, PauseCircle, PlayCircle, RefreshCw, Mail, Archive, Download, Smartphone, Landmark, Check, X } from 'lucide-react';
+import { ClipboardList, Ticket, Users, Zap, AlertCircle, CalendarDays, MapPin, ExternalLink, Search, Copy, PauseCircle, PlayCircle, RefreshCw, Mail, Archive, Download, Smartphone, Landmark, Check, X, Pencil } from 'lucide-react';
 
 const STATUS_COLORS = { published: '#10b981', draft: '#f59e0b', sold_out: '#ef4444', completed: '#6b7280', cancelled: '#ef4444' };
 const STATUS_MAP = { published: { variant: 'success', label: 'Live' }, draft: { variant: 'warning', label: 'Draft' }, sold_out: { variant: 'error', label: 'Sold Out' }, completed: { variant: 'info', label: 'Completed' }, cancelled: { variant: 'error', label: 'Cancelled' } };
@@ -103,6 +103,9 @@ export default function AdminEventDetail() {
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className="adm-export-btn" style={{ textDecoration: 'none' }}><ExternalLink size={14} strokeWidth={2} /> View Page</a>
+          <button className="adm-export-btn" style={{ background: 'var(--accent-gradient)', color: '#fff', border: 'none' }} onClick={() => router.push(`/admin/events/new?id=${event.id}`)}>
+            <Pencil size={14} strokeWidth={2} /> Edit Event
+          </button>
           <select
             value={event.status}
             onChange={e => updateStatus(e.target.value)}

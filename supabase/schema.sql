@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   role           TEXT NOT NULL CHECK (role IN ('super_admin','organiser','gate_staff')),
   phone          TEXT,
   is_active      BOOLEAN DEFAULT TRUE,
+  assigned_event_id UUID REFERENCES events(id) ON DELETE SET NULL,
   created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 

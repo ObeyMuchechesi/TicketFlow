@@ -57,6 +57,20 @@ export default async function handler(req, res) {
     try {
       await requireRole(req, 'super_admin', 'organiser');
       const { id } = req.body;
+      // Never destroy sold tickets — refuse to delete a tier with sales so
+      // revenue/check-in records are not cascaded away during event editing.
+      const { data: sold, error: countError } = await supabase
+        .from('ticket_types')
+        .select('quantity_sold, tickets (id)')
+        .eq('id', id)
+        .single();
+      if (countError) return res.status(400).json({ error: countError.message });
+      const soldCount = sold?.quantity_sold || sold?.tickets?.length || 0;
+      if (soldCount > 0) {
+        return res.status(409).json({
+          error: `This tier has ${soldCount} sold ticket${soldCount === 1 ? '' : 's'} and cannot be deleted. It will stay available for existing buyers.`,
+        });
+      }
       const { error } = await supabase.from('ticket_types').delete().eq('id', id);
       if (error) return res.status(400).json({ error: error.message });
       return res.json({ success: true });
