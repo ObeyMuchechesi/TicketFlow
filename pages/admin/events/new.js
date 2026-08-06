@@ -55,8 +55,9 @@ export default function NewEvent() {
     status: 'draft',
   });
   const [ticketTypes, setTicketTypes] = useState([
-    { name: 'General Admission', price: '', quantity_available: '', color: '#e94560' },
+    { name: 'General Admission', price: '', quantity_available: '', color: '#e94560', max_per_person: '' },
   ]);
+  const [eventType, setEventType] = useState('paid'); // 'paid' | 'free'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [stepErrors, setStepErrors] = useState({});
@@ -71,6 +72,7 @@ export default function NewEvent() {
         if (parsed.form) setForm(f => ({ ...f, ...parsed.form }));
         if (parsed.ticketTypes) setTicketTypes(parsed.ticketTypes);
         if (typeof parsed.currentStep === 'number') setCurrentStep(parsed.currentStep);
+        if (parsed.eventType) setEventType(parsed.eventType);
       }
     } catch {}
   }, []);
@@ -80,7 +82,7 @@ export default function NewEvent() {
     setAutosaveStatus('Saving...');
     autosaveTimer.current = setTimeout(() => {
       try {
-        localStorage.setItem('tf_new_event_draft', JSON.stringify({ form, ticketTypes, currentStep }));
+        localStorage.setItem('tf_new_event_draft', JSON.stringify({ form, ticketTypes, currentStep, eventType }));
         setAutosaveStatus('Saved');
       } catch {}
     }, 5000);
@@ -96,7 +98,15 @@ export default function NewEvent() {
   }
 
   function addTicketType() {
-    setTicketTypes(t => [...t, { name: '', price: '', quantity_available: '', color: '#e94560' }]);
+    setTicketTypes(t => [...t, { name: '', price: eventType === 'free' ? '0' : '', quantity_available: '', color: '#e94560', max_per_person: '' }]);
+  }
+
+  function setEventTypeMode(mode) {
+    setEventType(mode);
+    if (mode === 'free') {
+      // Free events lock every tier at $0.00
+      setTicketTypes(t => t.map(tt => ({ ...tt, price: '0' })));
+    }
   }
   function removeTicketType(i) {
     setTicketTypes(t => t.filter((_, idx) => idx !== i));
@@ -118,8 +128,14 @@ export default function NewEvent() {
         if (!form.capacity || Number(form.capacity) <= 0) errors.capacity = 'Valid capacity required';
         break;
       case 2: {
-        const hasValid = ticketTypes.some(t => t.name?.trim() && t.price !== '' && Number(t.price) >= 0 && t.quantity_available !== '' && Number(t.quantity_available) > 0);
-        if (!hasValid) errors.tickets = 'Add at least 1 complete ticket type (name, price, qty)';
+        const hasValid = ticketTypes.some(t =>
+          t.name?.trim() &&
+          (eventType === 'free' || (t.price !== '' && Number(t.price) >= 0)) &&
+          t.quantity_available !== '' && Number(t.quantity_available) > 0
+        );
+        if (!hasValid) errors.tickets = eventType === 'free'
+          ? 'Add at least 1 complete ticket type (name + capacity)'
+          : 'Add at least 1 complete ticket type (name, price, qty)';
         break;
       }
       case 6:
@@ -169,16 +185,18 @@ export default function NewEvent() {
       const eventId = data.event.id;
       await Promise.all(
         ticketTypes
-          .filter(t => t.name && t.price && t.quantity_available)
+          .filter(t => t.name && t.quantity_available && (eventType === 'free' || (t.price !== '' && Number(t.price) >= 0)))
           .map(t =>
             fetch('/api/ticket-types', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 event_id: eventId,
-                ...t,
-                price: Number(t.price),
+                name: t.name,
+                price: eventType === 'free' ? 0 : Number(t.price || 0),
                 quantity_available: Number(t.quantity_available),
+                color: t.color,
+                max_per_person: t.max_per_person,
               }),
             })
           )
@@ -280,6 +298,8 @@ export default function NewEvent() {
             {currentStep === 2 && (
               <StepTickets
                 ticketTypes={ticketTypes}
+                eventType={eventType}
+                setEventTypeMode={setEventTypeMode}
                 addTicketType={addTicketType}
                 removeTicketType={removeTicketType}
                 setTT={setTT}
@@ -299,6 +319,7 @@ export default function NewEvent() {
               <StepPublish
                 form={form}
                 ticketTypes={ticketTypes}
+                eventType={eventType}
                 setF={setF}
                 onEdit={(step) => setCurrentStep(step)}
               />
@@ -563,9 +584,63 @@ function StepBranding({ form, setF, errors }) {
   );
 }
 
-function StepTickets({ ticketTypes, addTicketType, removeTicketType, setTT, errors }) {
+function StepTickets({ ticketTypes, eventType, setEventTypeMode, addTicketType, removeTicketType, setTT, errors }) {
   return (
     <Wrapper>
+      {/* Event Type toggle: Paid vs Free */}
+      <Card style={{ padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px', flexWrap: 'wrap' }}>
+          <div style={{
+            width: '48px', height: '48px', borderRadius: '14px', flexShrink: 0,
+            background: eventType === 'free'
+              ? 'linear-gradient(135deg, #10b981, #059669)'
+              : 'linear-gradient(135deg, #a855f7, #ec4899)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px',
+          }}>{eventType === 'free' ? '🎉' : '💰'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '15px', fontWeight: 700 }}>Event Type</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              {eventType === 'free'
+                ? 'Tickets are free — customers reserve instantly with no payment step. QR codes still work at the gate.'
+                : 'Customers pay at checkout via Stripe or EcoCash.'}
+            </div>
+          </div>
+          <Badge variant={eventType === 'free' ? 'success' : 'primary'}>
+            {eventType === 'free' ? 'FREE EVENT' : 'PAID EVENT'}
+          </Badge>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          {[
+            { id: 'paid', icon: '💳', label: 'Paid Event', desc: 'Sell tickets with pricing' },
+            { id: 'free', icon: '🎉', label: 'Free Event', desc: 'Reserve tickets at $0.00' },
+          ].map(opt => (
+            <label
+              key={opt.id}
+              style={{
+                padding: '16px', borderRadius: '14px', cursor: 'pointer', transition: 'all 0.2s',
+                background: eventType === opt.id
+                  ? (opt.id === 'free' ? 'rgba(16,185,129,0.1)' : 'rgba(168,85,247,0.1)')
+                  : 'var(--panel-bg)',
+                border: `2px solid ${eventType === opt.id ? (opt.id === 'free' ? '#10b981' : 'var(--accent)') : 'var(--panel-border)'}`,
+              }}
+            >
+              <input
+                type="radio"
+                name="event_type"
+                checked={eventType === opt.id}
+                onChange={() => setEventTypeMode(opt.id)}
+                style={{ display: 'none' }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '18px' }}>{opt.icon}</span>
+                <span style={{ fontSize: '14px', fontWeight: 700 }}>{opt.label}</span>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{opt.desc}</div>
+            </label>
+          ))}
+        </div>
+      </Card>
+
       {errors.tickets && (
         <div style={{
           padding: '12px 16px',
@@ -622,15 +697,34 @@ function StepTickets({ ticketTypes, addTicketType, removeTicketType, setTT, erro
                 value={tt.name}
                 onChange={e => setTT(i, 'name', e.target.value)}
               />
-              <Input
-                label="Price ($)"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="25.00"
-                value={tt.price}
-                onChange={e => setTT(i, 'price', e.target.value)}
-              />
+              <div>
+                <div className="field-group">
+                  <label>Price ($)</label>
+                  {eventType === 'free' ? (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '10px 14px', borderRadius: 'var(--radius-md)',
+                      background: 'rgba(16,185,129,0.08)',
+                      border: '1px solid rgba(16,185,129,0.3)',
+                      color: '#059669', fontWeight: 800, fontSize: '14px',
+                    }}>
+                      $0.00
+                      <Badge variant="success" style={{ fontSize: '10px', padding: '2px 8px' }}>FREE</Badge>
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="25.00"
+                      value={tt.price}
+                      onChange={e => setTT(i, 'price', e.target.value)}
+                      className="premium-input"
+                      style={{ padding: '10px 14px', fontSize: '14px', borderRadius: 'var(--radius-md)', width: '100%' }}
+                    />
+                  )}
+                </div>
+              </div>
               <Input
                 label="Quantity"
                 type="number"
@@ -638,6 +732,18 @@ function StepTickets({ ticketTypes, addTicketType, removeTicketType, setTT, erro
                 placeholder="100"
                 value={tt.quantity_available}
                 onChange={e => setTT(i, 'quantity_available', e.target.value)}
+              />
+            </div>
+
+            <div style={{ marginTop: '12px' }}>
+              <Input
+                label="Max tickets per person"
+                type="number"
+                min="0"
+                placeholder="0 = unlimited"
+                value={tt.max_per_person}
+                onChange={e => setTT(i, 'max_per_person', e.target.value)}
+                helper="Optional · caps how many tickets one email can reserve for this tier (prevents bulk grabbing)"
               />
             </div>
 
@@ -1022,11 +1128,12 @@ function StepPayments({ form, setF }) {
   );
 }
 
-function StepPublish({ form, ticketTypes, setF, onEdit }) {
-  const validTickets = ticketTypes.filter(t => t.name && t.price !== '' && t.quantity_available !== '');
+function StepPublish({ form, ticketTypes, eventType, setF, onEdit }) {
+  const validTickets = ticketTypes.filter(t => t.name && t.quantity_available !== '' && (eventType === 'free' || (t.price !== '' && Number(t.price) >= 0)));
   const totalQty = validTickets.reduce((sum, t) => sum + Number(t.quantity_available || 0), 0);
-  const minPrice = validTickets.length ? Math.min(...validTickets.map(t => Number(t.price))) : 0;
-  const maxPrice = validTickets.length ? Math.max(...validTickets.map(t => Number(t.price))) : 0;
+  const minPrice = validTickets.length ? Math.min(...validTickets.map(t => Number(t.price) || 0)) : 0;
+  const maxPrice = validTickets.length ? Math.max(...validTickets.map(t => Number(t.price) || 0)) : 0;
+  const isFreeEvent = eventType === 'free';
 
   return (
     <Wrapper>
@@ -1063,9 +1170,13 @@ function StepPublish({ form, ticketTypes, setF, onEdit }) {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <Badge variant="primary">🎟️ {validTickets.length} tiers</Badge>
               <Badge variant="success">👥 {totalQty.toLocaleString()} tickets</Badge>
-              <Badge variant="info">
-                💵 {minPrice === maxPrice ? `$${minPrice}` : `$${minPrice} – $${maxPrice}`}
-              </Badge>
+              {isFreeEvent ? (
+                <Badge variant="success">🎉 FREE · No payment required</Badge>
+              ) : (
+                <Badge variant="info">
+                  💵 {minPrice === maxPrice ? `$${minPrice}` : `$${minPrice} – $${maxPrice}`}
+                </Badge>
+              )}
               {form.capacity && <Badge variant="warning">🏟️ Cap {Number(form.capacity).toLocaleString()}</Badge>}
             </div>
           </div>

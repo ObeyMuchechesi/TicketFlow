@@ -24,6 +24,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
 
   const accent = event?.theme_color || '#a855f7';
   const ticketColor = ticketType?.color || accent;
+  const isFree = !!ticketType && Number(ticketType.price) === 0;
   const qrValue = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app'}/ticket/${ticket.qr_code_token}`;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app';
 
@@ -90,6 +91,16 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
             }}>
               {ticketType?.name || 'General Admission'}
             </div>
+            {isFree && (
+              <div style={{
+                display: 'inline-block', marginTop: '8px', padding: '5px 14px',
+                borderRadius: '999px', fontSize: '11px', fontWeight: 800,
+                letterSpacing: '1px', textTransform: 'uppercase',
+                background: 'rgba(16,185,129,0.12)',
+                border: '1px solid rgba(16,185,129,0.4)',
+                color: '#059669',
+              }}>🎉 FREE ADMISSION</div>
+            )}
           </div>
 
           {/* Tear perforation */}
@@ -132,7 +143,7 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
                 { label: 'Date', value: formatDate(event?.date) },
                 { label: 'Time', value: event?.time },
                 { label: 'Venue', value: event?.venue },
-                { label: 'Price', value: ticketType?.price != null ? `$${ticketType.price}` : null },
+                { label: 'Price', value: isFree ? 'Free' : ticketType?.price != null ? `$${ticketType.price}` : null, color: isFree ? 'var(--success)' : null },
                 {
                   label: 'Status',
                   value: isUsed ? '✓ Checked In' : isActive ? '✅ Valid' : ticket.status,

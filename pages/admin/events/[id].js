@@ -71,11 +71,12 @@ export default function AdminEventDetail() {
   const revenue = (event.ticket_types || []).reduce((s, t) => s + ((t.quantity_sold || 0) * t.price), 0);
   const pctSold = total > 0 ? Math.round((sold / total) * 100) : 0;
   const sm = STATUS_MAP[event.status] || STATUS_MAP.draft;
+  const isFree = (event.ticket_types || []).length > 0 && (event.ticket_types || []).every(t => Number(t.price) === 0);
 
   const statCards = [
     { l: 'Tickets Sold', v: sold, c: 'linear-gradient(135deg, #a855f7, #ec4899)', sub: `${pctSold}% of capacity` },
     { l: 'Available', v: available, c: 'linear-gradient(135deg, #10b981, #06b6d4)', sub: `${total} total` },
-    { l: 'Revenue', v: `$${revenue.toLocaleString()}`, c: 'linear-gradient(135deg, #d4a853, #f97316)', sub: 'Gross sales' },
+    { l: 'Revenue', v: isFree ? '$0.00' : `$${revenue.toLocaleString()}`, c: 'linear-gradient(135deg, #d4a853, #f97316)', sub: isFree ? 'Free event — no payments' : 'Gross sales' },
     { l: 'Capacity', v: event.capacity || '∞', c: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', sub: 'Max attendees' },
   ];
 
@@ -91,6 +92,7 @@ export default function AdminEventDetail() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
             <h1 style={{ fontFamily: 'var(--font-primary)', fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 800, margin: 0 }}>{event.event_name}</h1>
             <Badge variant={sm.variant}>{sm.label}</Badge>
+            {isFree && <Badge variant="success">🎉 Free Event</Badge>}
           </div>
           <div style={{ fontSize: '14px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span>📅 {new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -187,7 +189,9 @@ export default function AdminEventDetail() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tt.color }} />
                         <span style={{ fontSize: '13px', fontWeight: 600 }}>{tt.name}</span>
-                        <span style={{ marginLeft: 'auto', fontSize: '13px', fontWeight: 700, color: tt.color }}>${tt.price}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: '13px', fontWeight: 700, color: Number(tt.price) === 0 ? '#059669' : tt.color }}>
+                          {Number(tt.price) === 0 ? 'FREE' : `$${tt.price}`}
+                        </span>
                       </div>
                       <Progress value={tt.quantity_sold || 0} max={tt.quantity_available} height={5} />
                       <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
@@ -222,7 +226,9 @@ export default function AdminEventDetail() {
                         </div>
                         <div>
                           <div style={{ fontSize: '16px', fontWeight: 700 }}>{tt.name}</div>
-                          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>${tt.price} per ticket</div>
+                          <div style={{ fontSize: '13px', color: Number(tt.price) === 0 ? '#059669' : 'var(--text-tertiary)' }}>
+                            {Number(tt.price) === 0 ? 'Free · No payment required' : `$${tt.price} per ticket`}
+                          </div>
                         </div>
                       </div>
                       <Progress value={tt.quantity_sold || 0} max={tt.quantity_available} showLabel height={8} />

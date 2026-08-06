@@ -387,6 +387,7 @@ export default function AdminDashboard() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
                           <span style={{ fontWeight: 700, fontSize: '16px', fontFamily: 'var(--font-primary)' }}>{ev.event_name}</span>
+                          {ev.isFree && <Badge variant="success">🎉 FREE</Badge>}
                           <Badge variant={statusVariants[ev.status] || 'glass'}>{ev.status?.replace('_', ' ')}</Badge>
                         </div>
                         <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}>

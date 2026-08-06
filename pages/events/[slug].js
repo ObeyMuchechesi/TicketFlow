@@ -121,6 +121,11 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
   const [liveViewers, setLiveViewers] = useState(5);
   const [shakeKey, setShakeKey] = useState(0);
 
+  // A ticket is FREE when its price is $0 — the checkout skips payment entirely.
+  // A fully-free event (all tiers $0) shows the 3-step flow from the start.
+  const isFreeEvent = (event.ticket_types || []).length > 0 && (event.ticket_types || []).every(t => Number(t.price) === 0);
+  const isFreeSelected = isFreeEvent || (!!selectedTicket && Number(selectedTicket.price) === 0);
+
   const discount = promoApplied ? promoApplied.discount_percent : 0;
   const baseTotal = selectedTicket ? selectedTicket.price * qty : 0;
   const discountAmt = Math.round(baseTotal * discount / 100 * 100) / 100;
@@ -185,18 +190,21 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
   }
 
   async function handlePurchase(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!selectedTicket) return;
     setLoading(true);
     setError('');
 
-    if (payMethod === 'stripe') {
+    // Free tickets go straight to reservation — no payment validation
+    const method = isFreeSelected ? 'free' : payMethod;
+
+    if (method === 'stripe') {
       if (!simulatedCard.number || simulatedCard.number.replace(/\s/g, '').length < 16) {
         setError('Please enter a valid 16-digit card number.');
         setLoading(false);
         return;
       }
-    } else if (payMethod === 'ecocash') {
+    } else if (method === 'ecocash') {
       if (!simulatedEcocash || !simulatedEcocash.startsWith('07')) {
         setError('Please enter a valid EcoCash number starting with 07.');
         setLoading(false);
@@ -215,7 +223,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
           buyerName: buyerForm.name,
           buyerEmail: buyerForm.email,
           buyerPhone: buyerForm.phone,
-          paymentMethod: payMethod,
+          paymentMethod: method,
           promoCode: promoApplied?.code,
           attendees: attendeeList
         }),
@@ -226,14 +234,15 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
         setLoading(false);
         return;
       }
-      if (payMethod === 'stripe' && data.checkoutUrl) {
+      if (method === 'stripe' && data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
-      } else if (payMethod === 'ecocash') {
+      } else if (method === 'ecocash') {
         setOrderId(data.orderId);
         setTokens(data.tokens || []);
         setEcocashData(data.ecocash || null);
         setStep('ecocash');
       } else {
+        // Free reservations land directly on the confirmation step
         setOrderId(data.orderId);
         setTokens(data.tokens || []);
         setStep('confirm');
@@ -251,16 +260,24 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
   };
 
   const shareText = encodeURIComponent(`Check out ${event.event_name} on TicketFlow! ${formatDateShort(event.date)} at ${event.venue}`);
-  const shareUrl = encodeURIComponent(window.location.href);
+  // Guard for SSR — window is undefined on the server
+  const shareUrl = typeof window !== 'undefined' ? encodeURIComponent(window.location.href) : '';
   const whatsappShare = `https://wa.me/?text=${shareText}%20${shareUrl}`;
   const twitterShare = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`;
 
-  const steps = [
-    { label: 'Tickets', key: 'select' },
-    { label: 'Details', key: 'details' },
-    { label: 'Payment', key: 'payment' },
-    { label: 'Confirmed', key: 'confirm' }
-  ];
+  // Free tickets skip the payment step: Tickets → Details → Confirmed
+  const steps = isFreeSelected
+    ? [
+        { label: 'Tickets', key: 'select' },
+        { label: 'Details', key: 'details' },
+        { label: 'Confirmed', key: 'confirm' },
+      ]
+    : [
+        { label: 'Tickets', key: 'select' },
+        { label: 'Details', key: 'details' },
+        { label: 'Payment', key: 'payment' },
+        { label: 'Confirmed', key: 'confirm' },
+      ];
   // The EcoCash prompt is treated as part of the Payment step in the indicator
   const currentStepIdx = step === 'ecocash' ? 2 : steps.findIndex(s => s.key === step);
 
@@ -729,6 +746,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       const rem = t.quantity_available - (t.quantity_sold || 0);
                       const soldOut = rem <= 0;
                       const sel = selectedTicket?.id === t.id;
+                      const free = Number(t.price) === 0;
                       return (
                         <div
                           key={t.id}
@@ -756,17 +774,34 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                               <span style={{ fontWeight: 700, fontSize: '15px' }}>{t.name}</span>
                             </div>
                             <span style={{ fontSize: '12px', color: soldOut ? '#ef4444' : 'var(--text-muted)' }}>
-                              {soldOut ? 'Sold Out' : `${rem} ${rem === 1 ? 'ticket' : 'tickets'} left`}
+                              {soldOut
+                                ? (free ? 'Fully Booked' : 'Sold Out')
+                                : `${rem} ${rem === 1 ? 'ticket' : 'tickets'} left`}
                             </span>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{
-                              fontSize: '22px', fontWeight: 800,
-                              color: t.color || accent,
-                              fontFamily: 'var(--font-display)',
-                              background: `linear-gradient(135deg, ${t.color || accent}, ${adjustColorBrightness(t.color || accent, -20)})`,
-                              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                            }}>${t.price}</div>
+                            {free ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                <div style={{
+                                  fontSize: '18px', fontWeight: 800, color: '#10b981',
+                                  fontFamily: 'var(--font-display)',
+                                  background: 'rgba(16,185,129,0.12)',
+                                  padding: '4px 12px', borderRadius: '10px',
+                                  border: '1px solid rgba(16,185,129,0.35)',
+                                }}>FREE</div>
+                                <div style={{ fontSize: '10px', color: '#10b981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  No payment
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{
+                                fontSize: '22px', fontWeight: 800,
+                                color: t.color || accent,
+                                fontFamily: 'var(--font-display)',
+                                background: `linear-gradient(135deg, ${t.color || accent}, ${adjustColorBrightness(t.color || accent, -20)})`,
+                                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
+                              }}>${t.price}</div>
+                            )}
                           </div>
                         </div>
                       );
@@ -810,66 +845,90 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                         </div>
                       </div>
 
-                      {/* Promo input */}
-                      <div className="fade-in-up">
-                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Promo Code</label>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input
-                            type="text"
-                            placeholder="PROMO CODE"
-                            value={promoCode}
-                            onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                            className="premium-input"
-                            style={{ padding: '12px 14px', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px' }}
-                          />
-                          <Button
-                            onClick={applyPromo}
-                            style={{
-                              padding: '12px 20px', fontSize: '12px',
-                              background: promoApplied ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--panel-bg)',
-                              color: '#fff', border: '1px solid',
-                              borderColor: promoApplied ? '#10b981' : 'var(--panel-border)',
-                              borderRadius: '12px', fontWeight: 700, cursor: 'pointer'
-                            }}
-                          >
-                            {promoApplied ? '✓ Applied' : 'Apply'}
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Invoice Summary Preview */}
-                      <div className="fade-in-up" style={{
-                        borderTop: '1px dashed var(--border)', paddingTop: '20px',
-                        display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-                          <span>{qty} × {selectedTicket.name}</span>
-                          <span>${baseTotal.toFixed(2)}</span>
-                        </div>
-                        {discountAmt > 0 && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981' }}>
-                            <span>Promo Discount ({discount}%)</span>
-                            <span>−${discountAmt.toFixed(2)}</span>
+                      {/* Promo input — paid tickets only */}
+                      {!isFreeSelected && (
+                        <div className="fade-in-up">
+                          <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-dimmed)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Promo Code</label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="PROMO CODE"
+                              value={promoCode}
+                              onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                              className="premium-input"
+                              style={{ padding: '12px 14px', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px' }}
+                            />
+                            <Button
+                              onClick={applyPromo}
+                              style={{
+                                padding: '12px 20px', fontSize: '12px',
+                                background: promoApplied ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--panel-bg)',
+                                color: '#fff', border: '1px solid',
+                                borderColor: promoApplied ? '#10b981' : 'var(--panel-border)',
+                                borderRadius: '12px', fontWeight: 700, cursor: 'pointer'
+                              }}
+                            >
+                              {promoApplied ? '✓ Applied' : 'Apply'}
+                            </Button>
                           </div>
-                        )}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-                          <span>Platform Fee (5%)</span>
-                          <span>${serviceFee.toFixed(2)}</span>
                         </div>
-                        <div style={{
-                          display: 'flex', justifyContent: 'space-between',
-                          fontSize: '20px', fontWeight: 800, color: 'var(--text)',
-                          borderTop: '2px solid var(--border)',
-                          paddingTop: '14px', marginTop: '4px',
-                          fontFamily: 'var(--font-display)'
+                      )}
+
+                      {/* Invoice Summary — free events show a FREE block instead of pricing */}
+                      {isFreeSelected ? (
+                        <div className="fade-in-up" style={{
+                          borderTop: '1px dashed var(--border)', paddingTop: '20px',
+                          display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px'
                         }}>
-                          <span>Total</span>
-                          <span style={{
-                            background: gradientAccent,
-                            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                          }}>${total.toFixed(2)}</span>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '14px', borderRadius: '12px',
+                            background: 'rgba(16,185,129,0.08)',
+                            border: '1px solid rgba(16,185,129,0.3)',
+                          }}>
+                            <span style={{ fontSize: '20px' }}>🎉</span>
+                            <div>
+                              <div style={{ fontWeight: 800, color: '#059669', fontSize: '15px' }}>FREE · No payment required</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                {qty} × {selectedTicket.name} — your tickets will be reserved instantly
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="fade-in-up" style={{
+                          borderTop: '1px dashed var(--border)', paddingTop: '20px',
+                          display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                            <span>{qty} × {selectedTicket.name}</span>
+                            <span>${baseTotal.toFixed(2)}</span>
+                          </div>
+                          {discountAmt > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981' }}>
+                              <span>Promo Discount ({discount}%)</span>
+                              <span>−${discountAmt.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                            <span>Platform Fee (5%)</span>
+                            <span>${serviceFee.toFixed(2)}</span>
+                          </div>
+                          <div style={{
+                            display: 'flex', justifyContent: 'space-between',
+                            fontSize: '20px', fontWeight: 800, color: 'var(--text)',
+                            borderTop: '2px solid var(--border)',
+                            paddingTop: '14px', marginTop: '4px',
+                            fontFamily: 'var(--font-display)'
+                          }}>
+                            <span>Total</span>
+                            <span style={{
+                              background: gradientAccent,
+                              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
+                            }}>${total.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
 
                       <Button
                         onClick={() => setStep('details')}
@@ -960,11 +1019,21 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                           setError('Please fill in your name and email');
                           return;
                         }
-                        setStep('payment');
+                        if (isFreeSelected) {
+                          // Free events: reserve instantly, skip payment entirely
+                          handlePurchase();
+                        } else {
+                          setStep('payment');
+                        }
                       }}
-                      className="premium-btn-primary" style={{ flex: 2, padding: '14px', fontSize: '14px' }}
+                      disabled={loading}
+                      className="premium-btn-primary"
+                      style={{
+                        flex: 2, padding: '14px', fontSize: '14px',
+                        ...(isFreeSelected ? { background: 'linear-gradient(135deg, #10b981, #059669)' } : {}),
+                      }}
                     >
-                      Continue to Payment →
+                      {loading ? '⏳ Reserving...' : isFreeSelected ? '🎟️ Reserve Free Tickets' : 'Continue to Payment →'}
                     </Button>
                   </div>
                 </div>
@@ -1242,10 +1311,30 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                     </div>
                   </div>
 
-                  <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-display)', marginBottom: '10px', letterSpacing: '-0.02em' }}>Booking Confirmed!</h3>
+                  <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-display)', marginBottom: '10px', letterSpacing: '-0.02em' }}>
+                    {isFreeSelected ? 'Tickets Reserved!' : 'Booking Confirmed!'}
+                  </h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, marginBottom: '24px' }}>
-                    Thank you! Your tickets for <strong style={{ color: 'var(--text)' }}>{event.event_name}</strong> are successfully issued.
+                    {isFreeSelected ? (
+                      <>Your free tickets for <strong style={{ color: 'var(--text)' }}>{event.event_name}</strong> have been reserved. No payment required.</>
+                    ) : (
+                      <>Thank you! Your tickets for <strong style={{ color: 'var(--text)' }}>{event.event_name}</strong> are successfully issued.</>
+                    )}
                   </p>
+
+                  {isFreeSelected && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      padding: '12px 16px', borderRadius: '12px', marginBottom: '22px',
+                      background: 'rgba(16,185,129,0.1)',
+                      border: '1px solid rgba(16,185,129,0.35)',
+                    }}>
+                      <span style={{ fontSize: '18px' }}>🎉</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#059669' }}>
+                        Free — No Payment Required · {qty} {qty === 1 ? 'ticket' : 'tickets'} reserved
+                      </span>
+                    </div>
+                  )}
 
                   <div className="glass" style={{
                     padding: '18px', borderRadius: '14px',

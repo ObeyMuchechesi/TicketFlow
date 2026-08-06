@@ -1,13 +1,20 @@
 import { getServiceClient } from '../../../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { buildEcocashShortcode, generateEcocashReference, dialableShortcode } from '../../../lib/ecocash';
+import { sendTicketConfirmation } from '../../../lib/tickets';
+
+const MAX_QUANTITY = 50;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { eventId, ticketTypeId, quantity, buyerName, buyerEmail, buyerPhone, paymentMethod, promoCode } = req.body;
-  if (!eventId || !ticketTypeId || !quantity || !buyerName || !buyerEmail)
+  if (!eventId || !ticketTypeId || !buyerName || !buyerEmail)
     return res.status(400).json({ error: 'Missing required fields' });
+
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QUANTITY)
+    return res.status(400).json({ error: `Quantity must be between 1 and ${MAX_QUANTITY}` });
 
   const supabase = getServiceClient();
 
@@ -23,11 +30,56 @@ export default async function handler(req, res) {
     if (ttErr || !tt) return res.status(404).json({ error: 'Ticket type not found' });
 
     const remaining = tt.quantity_available - tt.quantity_sold;
-    if (remaining < quantity) return res.status(400).json({ error: `Only ${remaining} tickets remaining` });
+    if (remaining < qty) return res.status(400).json({ error: `Only ${remaining} tickets remaining` });
 
-    // Apply promo code if provided
+    // Free events = ticket types priced at $0. They skip payment entirely but
+    // still get unique QR tokens, capacity tracking and gate scanning.
+    const isFree = Number(tt.price) === 0;
+
+    // SECURITY: paid tickets must go through a real payment method. Deriving the
+    // flow from price means a client can never mint paid tickets for free by
+    // sending `paymentMethod: 'free'` — reject anything that isn't a valid flow.
+    if (!isFree && paymentMethod !== 'stripe' && paymentMethod !== 'ecocash') {
+      return res.status(400).json({ error: 'Invalid payment method for this ticket' });
+    }
+
+    // Per-person reservation limit (0 / NULL = unlimited). Counts existing
+    // reservations for the same email AND the same phone, whichever is higher.
+    const maxPerPerson = Number(tt.max_per_person) || 0;
+    if (maxPerPerson > 0) {
+      const email = String(buyerEmail || '').trim().toLowerCase();
+      const phone = String(buyerPhone || '').trim();
+      let existing = 0;
+
+      const { count: emailCount } = await supabase
+        .from('tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_id', eventId)
+        .eq('ticket_type_id', ticketTypeId)
+        .eq('buyer_email', email);
+      existing = Math.max(existing, emailCount || 0);
+
+      if (phone) {
+        const { count: phoneCount } = await supabase
+          .from('tickets')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', eventId)
+          .eq('ticket_type_id', ticketTypeId)
+          .eq('buyer_phone', phone);
+        existing = Math.max(existing, phoneCount || 0);
+      }
+
+      if (existing + qty > maxPerPerson) {
+        const remainingAllowed = Math.max(0, maxPerPerson - existing);
+        return res.status(400).json({
+          error: `Maximum ${maxPerPerson} ticket${maxPerPerson > 1 ? 's' : ''} per person for "${tt.name}". You already have ${existing} reserved${remainingAllowed > 0 ? ` — ${remainingAllowed} more allowed` : ''}.`,
+        });
+      }
+    }
+
+    // Promo codes only apply to paid tickets
     let discount = 0;
-    if (promoCode) {
+    if (!isFree && promoCode) {
       const { data: promo } = await supabase
         .from('promo_codes')
         .select('*')
@@ -42,18 +94,20 @@ export default async function handler(req, res) {
     }
 
     const unitPrice = Number(tt.price);
-    const baseTotal = unitPrice * Number(quantity);
+    const baseTotal = unitPrice * qty;
     const discountAmt = Math.round(baseTotal * discount / 100 * 100) / 100;
     const serviceFee = Math.round(baseTotal * 0.05 * 100) / 100;
     const total = Math.round((baseTotal - discountAmt + serviceFee) * 100) / 100;
 
-    // If Stripe, create a Checkout session
-    if (paymentMethod === 'stripe') {
+    // ─────────────────────────────────────────────────────────
+    // PAID flows — Stripe & EcoCash only (skipped entirely for free tickets)
+    // ─────────────────────────────────────────────────────────
+    if (!isFree && paymentMethod === 'stripe') {
       const { default: Stripe } = await import('stripe');
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2023-10-16' });
 
       // Pre-generate tokens to embed in metadata
-      const tokens = Array.from({ length: Number(quantity) }, () => uuidv4());
+      const tokens = Array.from({ length: qty }, () => uuidv4());
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -63,14 +117,14 @@ export default async function handler(req, res) {
             product_data: { name: `${tt.name} — TiketFlow` },
             unit_amount: Math.round(discountedUnitPrice(unitPrice, discount) * 100),
           },
-          quantity: Number(quantity),
+          quantity: qty,
         }],
         mode: 'payment',
         success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/tickets/stripe-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/events/${req.body.slug || ''}`,
         customer_email: buyerEmail,
         metadata: {
-          eventId, ticketTypeId, quantity: String(quantity),
+          eventId, ticketTypeId, quantity: String(qty),
           buyerName, buyerEmail, buyerPhone: buyerPhone || '',
           tokens: tokens.join(','), discount: String(discount),
         },
@@ -79,13 +133,11 @@ export default async function handler(req, res) {
       return res.json({ checkoutUrl: session.url });
     }
 
-    // ─────────────────────────────────────────────────────────
-    // EcoCash: auto-generate the USSD payment instructions.
-    // We validate the organiser's config BEFORE creating any tickets
-    // so we never mint unpaid tickets the customer can't actually pay for.
-    // ─────────────────────────────────────────────────────────
+    // EcoCash: auto-generate the USSD payment instructions. We validate the
+    // organiser's config BEFORE creating any tickets so we never mint unpaid
+    // tickets the customer can't actually pay for.
     let ecocash = null;
-    if (paymentMethod === 'ecocash') {
+    if (!isFree && paymentMethod === 'ecocash') {
       const reference = generateEcocashReference();
       const { data: event } = await supabase
         .from('events')
@@ -117,9 +169,12 @@ export default async function handler(req, res) {
       }
     }
 
+    // ─────────────────────────────────────────────────────────
+    // Create tickets (free & paid share this path)
+    // ─────────────────────────────────────────────────────────
     const tokens = [];
     const ticketInserts = [];
-    for (let i = 0; i < Number(quantity); i++) {
+    for (let i = 0; i < qty; i++) {
       const token = uuidv4();
       tokens.push(token);
       ticketInserts.push({
@@ -136,26 +191,50 @@ export default async function handler(req, res) {
     const { error: insertErr } = await supabase.from('tickets').insert(ticketInserts);
     if (insertErr) return res.status(500).json({ error: 'Failed to create tickets' });
 
-    // Increment quantity_sold
-    await supabase.from('ticket_types')
-      .update({ quantity_sold: tt.quantity_sold + Number(quantity) })
-      .eq('id', ticketTypeId);
+    // Atomic capacity increment (capacity tracking for both paid & free).
+    // The conditional .eq('quantity_sold', tt.quantity_sold) makes the update
+    // fail-safe against two concurrent reservations overselling the same tier.
+    const { data: incResult, error: incErr } = await supabase
+      .from('ticket_types')
+      .update({ quantity_sold: tt.quantity_sold + qty })
+      .eq('id', ticketTypeId)
+      .eq('quantity_sold', tt.quantity_sold)
+      .select('quantity_sold');
 
-    // Record payment
-    const { data: firstTicket } = await supabase.from('tickets').select('id').eq('qr_code_token', tokens[0]).single();
-    if (firstTicket) {
-      await supabase.from('payments').insert({
-        ticket_id: firstTicket.id,
-        amount: total,
-        currency: 'USD',
-        payment_method: paymentMethod,
-        status: paymentMethod === 'ecocash' ? 'pending' : 'completed',
-        transaction_ref: ecocash?.reference || null,
-        paid_at: new Date().toISOString(),
-      });
+    if (incErr || !incResult || incResult.length === 0) {
+      // Sold out between our check and this write — roll back the tickets
+      await supabase.from('tickets').delete().in('qr_code_token', tokens);
+      return res.status(400).json({ error: `Only ${Math.max(0, remaining)} tickets remaining` });
     }
 
-    return res.json({ success: true, tokens, orderId: tokens[0], ecocash });
+    // Record payment ONLY for paid tickets — free reservations create no
+    // payment record (revenue stays $0.00).
+    if (!isFree) {
+      const { data: firstTicket } = await supabase.from('tickets').select('id').eq('qr_code_token', tokens[0]).single();
+      if (firstTicket) {
+        await supabase.from('payments').insert({
+          ticket_id: firstTicket.id,
+          amount: total,
+          currency: 'USD',
+          payment_method: paymentMethod,
+          status: paymentMethod === 'ecocash' ? 'pending' : 'completed',
+          transaction_ref: ecocash?.reference || null,
+          paid_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Fire-and-forget digital ticket email — never blocks the reservation response
+    Promise.all([
+      supabase.from('events').select('event_name, date, time, venue').eq('id', eventId).single(),
+      supabase.from('tickets').select('*').eq('qr_code_token', tokens[0]).single(),
+    ]).then(([evRes, tkRes]) => {
+      if (evRes.data && tkRes.data) {
+        sendTicketConfirmation({ ticket: tkRes.data, event: evRes.data, ticketType: tt, isFree });
+      }
+    }).catch(err => console.error('Ticket email failed:', err));
+
+    return res.json({ success: true, tokens, orderId: tokens[0], ecocash, free: isFree });
   } catch (err) {
     console.error('Purchase error:', err);
     return res.status(500).json({ error: 'Purchase failed. Please try again.' });

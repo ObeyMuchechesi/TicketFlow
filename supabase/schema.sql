@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS ticket_types (
   price               DECIMAL(10,2) NOT NULL DEFAULT 0,
   quantity_available  INTEGER NOT NULL DEFAULT 0,
   quantity_sold       INTEGER NOT NULL DEFAULT 0,
+  max_per_person      INTEGER NOT NULL DEFAULT 0, -- 0 = unlimited, otherwise max tickets per email
   color               TEXT DEFAULT '#e94560',
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );

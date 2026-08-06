@@ -1,4 +1,5 @@
 import { getServiceClient } from '../../../lib/supabase';
+import { sendTicketConfirmation } from '../../../lib/tickets';
 
 export default async function handler(req, res) {
   const { session_id } = req.query;
@@ -44,6 +45,16 @@ export default async function handler(req, res) {
         paid_at: new Date().toISOString(),
       });
     }
+
+    // Fire-and-forget digital ticket email — never blocks the redirect
+    Promise.all([
+      supabase.from('events').select('event_name, date, time, venue').eq('id', eventId).single(),
+      supabase.from('tickets').select('*').eq('qr_code_token', tokens[0]).single(),
+    ]).then(([evRes, tkRes]) => {
+      if (evRes.data && tkRes.data) {
+        sendTicketConfirmation({ ticket: tkRes.data, event: evRes.data, ticketType: tt });
+      }
+    }).catch(err => console.error('Ticket email failed:', err));
 
     // Redirect to first ticket page
     return res.redirect(`/ticket/${tokens[0]}`);

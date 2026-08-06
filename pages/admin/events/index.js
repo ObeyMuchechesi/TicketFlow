@@ -150,7 +150,6 @@ export default function AdminEvents() {
           {filtered.map((ev, i) => {
             const pct = ev.capacity > 0 ? Math.min((ev.sold / ev.capacity) * 100, 100) : 0;
             const status = STATUS_MAP[ev.status] || STATUS_MAP.draft;
-            const revenue = (ev.sold || 0) * (ev.avgPrice || 25);
 
             return (
               <div
@@ -162,7 +161,8 @@ export default function AdminEvents() {
                   {ev.poster_image ? (
                     <img src={ev.poster_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : '🎪'}
-                  <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
+                  <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px' }}>
+                    {ev.isFree && <Badge variant="success">🎉 FREE</Badge>}
                     <Badge variant={status.variant}>{status.label}</Badge>
                   </div>
                 </div>
@@ -195,6 +195,19 @@ export default function AdminEvents() {
                       <div className="adm-event-card-stat-value" style={{ color: 'var(--text-primary)' }}>{Math.round(pct)}%</div>
                       <div className="adm-event-card-stat-label">Filled</div>
                     </div>
+                    {ev.isFree ? (
+                      <div className="adm-event-card-stat">
+                        <div className="adm-event-card-stat-value" style={{ color: '#059669' }}>$0</div>
+                        <div className="adm-event-card-stat-label">Revenue</div>
+                      </div>
+                    ) : (
+                      <div className="adm-event-card-stat">
+                        <div className="adm-event-card-stat-value" style={{ color: 'var(--accent-primary)' }}>
+                          ${Number(ev.revenue || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                        <div className="adm-event-card-stat-label">Revenue</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

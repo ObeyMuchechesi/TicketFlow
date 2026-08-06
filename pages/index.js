@@ -149,6 +149,11 @@ function minPrice(event) {
   return Math.min(...types.map(t => Number(t.price)));
 }
 
+function allFree(event) {
+  const types = event.ticket_types || [];
+  return types.length > 0 && types.every(t => Number(t.price) === 0);
+}
+
 function totalTickets(event) {
   return (event.ticket_types || []).reduce((a, t) => a + (Number(t.quantity_available) || 0), 0);
 }
@@ -643,6 +648,7 @@ function PremiumEventCard({ event, formatDate, minPrice, favourited, onToggleFav
 
         <div className="tf-event-card-badge">
           <Badge variant="glass">{category}</Badge>
+          {allFree(event) && <Badge variant="success">🎉 FREE</Badge>}
           {ps >= 80 && <Badge variant="error">🔥 {ps}% Sold</Badge>}
           {event.status === 'sold_out' && <Badge variant="error">Sold Out</Badge>}
         </div>
@@ -692,22 +698,31 @@ function PremiumEventCard({ event, formatDate, minPrice, favourited, onToggleFav
 
         {/* Ticket Tiers */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' }}>
-          {(event.ticket_types || []).slice(0, 3).map((t, i) => (
-            <span key={i} className="tf-badge" style={{
-              background: `${t.color || accent}15`,
-              border: `1px solid ${t.color || accent}30`,
-              color: 'var(--text-secondary)',
-              fontSize: '11px',
-            }}>
-              {t.name} <strong style={{ color: t.color || accent }}>${t.price}</strong>
-            </span>
-          ))}
+          {(event.ticket_types || []).slice(0, 3).map((t, i) => {
+            const isFree = Number(t.price) === 0;
+            return (
+              <span key={i} className="tf-badge" style={{
+                background: isFree ? 'rgba(16,185,129,0.12)' : `${t.color || accent}15`,
+                border: `1px solid ${isFree ? 'rgba(16,185,129,0.4)' : `${t.color || accent}30`}`,
+                color: 'var(--text-secondary)',
+                fontSize: '11px',
+              }}>
+                {t.name} <strong style={{ color: isFree ? '#059669' : (t.color || accent) }}>{isFree ? 'FREE' : `$${t.price}`}</strong>
+              </span>
+            );
+          })}
         </div>
 
         <div className="tf-event-card-footer">
           <div className="tf-event-card-price">
-            {low !== null ? (
-              <>${low} <span>from</span></>
+            {allFree(event) ? (
+              <span style={{ color: '#059669' }}>Free</span>
+            ) : low !== null ? (
+              low === 0 ? (
+                <>Free <span>from</span></>
+              ) : (
+                <>${low} <span>from</span></>
+              )
             ) : (
               <span>Free</span>
             )}
