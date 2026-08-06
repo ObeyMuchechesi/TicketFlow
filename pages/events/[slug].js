@@ -469,7 +469,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
 
       {/* Ticket Progress Bar - Urgency */}
       <section style={{
-        maxWidth: '1200px', margin: '-40px auto 0', padding: '0 20px',
+        maxWidth: '1200px', margin: '-16px auto 0', padding: '0 20px',
         position: 'relative', zIndex: 10
       }} className="fade-in-up">
         <div className="glass" style={{

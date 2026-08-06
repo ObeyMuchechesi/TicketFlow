@@ -462,6 +462,7 @@ body {
   letter-spacing: -0.02em;
   color: var(--text-primary);
   text-decoration: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 14px rgba(255, 255, 255, 0.45);
 }
 
 .tf-logo-icon {
@@ -492,6 +493,7 @@ body {
   padding: 8px 16px;
   border-radius: var(--radius-md);
   transition: all var(--duration-fast) var(--ease-out);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .tf-nav-links a:hover {
