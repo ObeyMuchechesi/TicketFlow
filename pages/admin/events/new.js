@@ -270,7 +270,7 @@ export default function NewEvent() {
       const validTiers = ticketTypes
         .filter(t => t.name && t.quantity_available && (eventType === 'free' || (t.price !== '' && Number(t.price) >= 0)));
 
-      let eventId;
+      let savedEventId;
       if (isEdit) {
         // Update the existing event
         const res = await fetch(`/api/events/${eventId}`, {
@@ -280,7 +280,7 @@ export default function NewEvent() {
         });
         const data = await res.json();
         if (!res.ok) { setError(data.error || 'Failed to update event'); setLoading(false); return; }
-        eventId = data.event.id;
+        savedEventId = data.event.id;
       } else {
         const res = await fetch('/api/events', {
           method: 'POST',
@@ -289,12 +289,12 @@ export default function NewEvent() {
         });
         const data = await res.json();
         if (!res.ok) { setError(data.error || 'Failed to create event'); setLoading(false); return; }
-        eventId = data.event.id;
+        savedEventId = data.event.id;
       }
 
       // Reconcile ticket tiers: update existing (with id), create new ones,
       // and remove any previously-existing tiers that are no longer in the list.
-      const existing = (await (await fetch(`/api/events/${eventId}`)).json()).event?.ticket_types || [];
+      const existing = (await (await fetch(`/api/events/${savedEventId}`)).json()).event?.ticket_types || [];
       const existingIds = existing.map(t => t.id);
       const keptIds = new Set(validTiers.map(t => t.id).filter(Boolean));
       // Only delete tiers that have NO sold tickets — tiers with sales are
@@ -308,7 +308,7 @@ export default function NewEvent() {
           method: t.id ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...(t.id ? { id: t.id } : { event_id: eventId }),
+            ...(t.id ? { id: t.id } : { event_id: savedEventId }),
             name: t.name,
             price: eventType === 'free' ? 0 : Number(t.price || 0),
             quantity_available: Number(t.quantity_available),
@@ -333,7 +333,7 @@ export default function NewEvent() {
       }
 
       try { localStorage.removeItem('tf_new_event_draft'); } catch {}
-      router.push(`/admin/events/${eventId}`);
+      router.push(`/admin/events/${savedEventId}`);
     } catch {
       setError('Something went wrong');
       setLoading(false);
