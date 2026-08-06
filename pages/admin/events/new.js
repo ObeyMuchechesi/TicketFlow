@@ -240,7 +240,7 @@ export default function NewEvent() {
     if (currentStep > 0) setCurrentStep(s => s - 1);
   }
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e, statusOverride) {
     if (e) e.preventDefault();
     if (!validateStep(currentStep)) return;
     setLoading(true);
@@ -258,7 +258,7 @@ export default function NewEvent() {
         theme_image: form.theme_image || null,
         theme_color: form.theme_color,
         capacity: form.capacity,
-        status: form.status,
+        status: statusOverride ?? form.status,
         ecocash_type: form.ecocash_type,
         ecocash_code: form.ecocash_code,
         ecocash_phone: form.ecocash_phone,
@@ -493,9 +493,28 @@ export default function NewEvent() {
                 Continue →
               </Button>
             ) : (
-              <Button type="submit" variant="primary" fullWidth loading={loading}>
-                {loading ? (isEdit ? 'Saving...' : 'Creating...') : isEdit ? 'Save Changes' : (form.status === 'published' ? 'Publish Event' : 'Save as Draft')}
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth
+                  loading={loading}
+                  disabled={loading}
+                  onClick={() => handleSubmit(undefined, isEdit ? undefined : 'draft')}
+                >
+                  {loading ? 'Saving...' : (isEdit ? 'Save Changes' : 'Save as Draft')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="success"
+                  fullWidth
+                  loading={loading}
+                  disabled={loading}
+                  onClick={() => handleSubmit(undefined, 'published')}
+                >
+                  {loading ? 'Publishing...' : 'Publish Event'}
+                </Button>
+              </>
             )}
           </div>
         </form>
