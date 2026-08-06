@@ -4,7 +4,10 @@ import { requireRole, hashPassword } from '../../../lib/auth';
 // Staff management (super_admin / organiser only).
 // Each gate staff member is assigned to ONE event (assigned_event_id) which
 // scopes their gate dashboard and check-in access.
-const STAFF_SELECT = 'id, email, full_name, phone, is_active, assigned_event_id, created_at, events (id, event_name)';
+// users has TWO foreign keys to events (organiser_id and assigned_event_id),
+// so PostgREST needs an explicit relationship hint on the embed — otherwise it
+// errors with "more than one relationship was found for 'users' and 'events'".
+const STAFF_SELECT = 'id, email, full_name, phone, is_active, assigned_event_id, created_at, events!assigned_event_id (id, event_name)';
 const STAFF_SELECT_NO_ASSIGN = 'id, email, full_name, phone, is_active, created_at';
 
 function isMissingColumn(err) {
