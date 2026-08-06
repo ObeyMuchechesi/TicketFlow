@@ -1,9 +1,9 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { buildTiketFlowWhatsAppMessage, buildWhatsAppHandoffUrl } from '../../lib/tickets';
-import { Apple, Smartphone, MessageCircle, Mail, Link2, Printer, Check, ArrowLeft, TicketX } from 'lucide-react';
+import { Apple, Smartphone, MessageCircle, Mail, Link2, Printer, Check, ArrowLeft, TicketX, ImageIcon, Share2, Loader2 } from 'lucide-react';
 
 export default function TicketPage({ ticket, event, ticketType, error: serverError }) {
   const router = useRouter();
@@ -27,8 +27,13 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
   const accent = event?.theme_color || '#a855f7';
   const ticketColor = ticketType?.color || accent;
   const isFree = !!ticketType && Number(ticketType.price) === 0;
-  const qrValue = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app'}/ticket/${ticket.qr_code_token}`;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app';
+  // Hydration-safe origin: SSR and first client render stay identical (env
+  // fallback), then the real origin is applied after mount so card/share links
+  // work from any deployment (dev ports included).
+  const [origin, setOrigin] = useState(null);
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+  const siteUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://tiketflow.vercel.app';
+  const qrValue = `${siteUrl}/ticket/${ticket.qr_code_token}`;
 
   function formatDate(d) {
     try { return new Date(d).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
@@ -45,6 +50,43 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
     setCopied(label);
     setTimeout(() => setCopied(null), 2000);
   };
+
+  const [cardBusy, setCardBusy] = useState(false);
+  const cardUrl = `${siteUrl}/api/tickets/card/${ticket.qr_code_token}`;
+
+  // Download the ticket card PNG so the buyer can attach it to WhatsApp manually.
+  async function handleDownloadCard() {
+    setCardBusy(true);
+    try {
+      const res = await fetch(cardUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `TiketFlow-ticket-${ticket.qr_code_token.slice(0, 8)}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch { /* ignore */ }
+    setCardBusy(false);
+  }
+
+  // Native share with the actual image file — on mobile this opens WhatsApp
+  // with the ticket card attached.
+  async function handleShareCard() {
+    setCardBusy(true);
+    try {
+      const res = await fetch(cardUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `TiketFlow-ticket-${ticket.qr_code_token.slice(0, 8)}.png`, { type: 'image/png' });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: `TiketFlow Ticket — ${event?.event_name}`, text: 'My TiketFlow ticket card' });
+      } else {
+        // Desktop fallback — open WhatsApp with the branded message
+        window.open(whatsappUrl, '_blank', 'noopener');
+      }
+    } catch { window.open(whatsappUrl, '_blank', 'noopener'); }
+    setCardBusy(false);
+  }
 
   const ticketUrl = `${siteUrl}/ticket/${ticket.qr_code_token}`;
   const shareText = encodeURIComponent(`I have a ticket for ${event?.event_name}! View it here:`);
@@ -210,6 +252,26 @@ export default function TicketPage({ ticket, event, ticketType, error: serverErr
             >
               <Mail size={17} strokeWidth={2} /> Email
             </a>
+          </div>
+
+          {/* Ticket card share/download */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <button
+              className="tf-wallet-card"
+              style={{ background: 'var(--bg-glass-light)', border: '1px solid var(--border-primary)', justifyContent: 'center' }}
+              onClick={handleShareCard}
+              disabled={cardBusy}
+            >
+              {cardBusy ? <Loader2 size={16} style={{ animation: 'spin-slow 0.8s linear infinite' }} /> : <Share2 size={16} strokeWidth={2} />} Share Ticket Card
+            </button>
+            <button
+              className="tf-wallet-card"
+              style={{ background: 'var(--bg-glass-light)', border: '1px solid var(--border-primary)', justifyContent: 'center' }}
+              onClick={handleDownloadCard}
+              disabled={cardBusy}
+            >
+              {cardBusy ? <Loader2 size={16} style={{ animation: 'spin-slow 0.8s linear infinite' }} /> : <ImageIcon size={16} strokeWidth={2} />} Save Card
+            </button>
           </div>
 
           {/* Action buttons */}
