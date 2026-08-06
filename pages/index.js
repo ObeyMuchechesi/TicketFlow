@@ -747,7 +747,7 @@ export async function getServerSideProps() {
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
-    const { data: events, error } = await supabase
+    let { data: events, error } = await supabase
       .from('events')
       .select(`
         id, slug, event_name, date, time, venue, poster_image, cover_image, status, theme_color, description,
@@ -755,6 +755,19 @@ export async function getServerSideProps() {
       `)
       .eq('status', 'published')
       .order('date', { ascending: true });
+
+    // Databases not yet migrated with cover_image — fall back to poster_image
+    // so real events still appear on the homepage instead of the demo list.
+    if (error && /cover_image|column .* does not exist/.test(error.message)) {
+      ({ data: events, error } = await supabase
+        .from('events')
+        .select(`
+          id, slug, event_name, date, time, venue, poster_image, status, theme_color, description,
+          ticket_types (id, name, price, color, quantity_available, quantity_sold)
+        `)
+        .eq('status', 'published')
+        .order('date', { ascending: true }));
+    }
 
     if (error || !events?.length) {
       return { props: { events: [] } };
