@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { Badge, Progress } from '../../components/ui';
+import jsQR from 'jsqr';
 
 export default function CheckinPage() {
   const router = useRouter();
@@ -16,8 +17,17 @@ export default function CheckinPage() {
   const [flashOn, setFlashOn] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('back');
   const [batteryMode, setBatteryMode] = useState(false);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [detected, setDetected] = useState(false);
   const inputRef = useRef(null);
   const resultTimeout = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanLoopRef = useRef(null);
+  const lastCodeRef = useRef('');
+  const lastDecodeAtRef = useRef(0);
   const todayCount = (stats?.recent || []).filter(c => {
     if (!c?.scanned_at) return false;
     const d = new Date(c.scanned_at);
@@ -88,6 +98,124 @@ export default function CheckinPage() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.replace('/staff/login');
   }
+
+  // ── Camera QR scanning ──────────────────────────────────────────
+  function extractToken(data) {
+    const t = String(data || '').trim();
+    // Ticket QR codes encode the full /ticket/<token> URL — pull the token out
+    const m = t.match(/\/ticket\/([A-Za-z0-9-]+)/);
+    return m ? m[1] : t;
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Camera is not supported in this browser. Use the manual input below instead.');
+      return;
+    }
+    setCameraError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setCameraOn(true);
+      if (scanLoopRef.current) clearInterval(scanLoopRef.current);
+      scanLoopRef.current = setInterval(scanFrame, 160);
+    } catch (err) {
+      console.error('Camera error:', err);
+      setCameraError(
+        err?.name === 'NotAllowedError'
+          ? 'Camera permission was denied. Allow camera access in your browser, then tap Retry, or use manual entry.'
+          : err?.name === 'NotFoundError'
+            ? 'No camera was found on this device. Use the manual input below instead.'
+            : 'Could not start the camera. Use the manual input below instead.'
+      );
+    }
+  }
+
+  function stopCamera() {
+    if (scanLoopRef.current) { clearInterval(scanLoopRef.current); scanLoopRef.current = null; }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraOn(false);
+  }
+
+  function scanFrame() {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < 2 || !video.videoWidth) return;
+    const W = 480;
+    const H = Math.round((video.videoHeight / video.videoWidth) * W) || 360;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, W, H);
+    const img = ctx.getImageData(0, 0, W, H);
+    const code = jsQR(img.data, W, H, { inversionAttempts: 'dontInvert' });
+    if (code && code.data) {
+      const now = Date.now();
+      const token = extractToken(code.data);
+      if (token && token !== lastCodeRef.current && now - lastDecodeAtRef.current > 2500) {
+        lastCodeRef.current = token;
+        lastDecodeAtRef.current = now;
+        setDetected(true);
+        setTimeout(() => setDetected(false), 1200);
+        processToken(token);
+      }
+    }
+  }
+
+  async function flipCamera() {
+    const next = cameraFacing === 'back' ? 'user' : 'environment';
+    try {
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setCameraFacing(next === 'environment' ? 'back' : 'front');
+      setCameraOn(true);
+      setCameraError('');
+    } catch {
+      // keep the current camera
+    }
+  }
+
+  async function toggleTorch() {
+    const track = streamRef.current?.getVideoTracks?.()[0];
+    if (!track) {
+      setFlashOn(f => !f); // cosmetic fallback when no live camera
+      return;
+    }
+    try {
+      await track.applyConstraints({ advanced: [{ torch: !flashOn }] });
+      setFlashOn(f => !f);
+    } catch {
+      setFlashOn(f => !f); // torch unsupported — cosmetic highlight only
+    }
+  }
+
+  // Auto-start the camera while the Scan tab is open; stop it when leaving
+  useEffect(() => {
+    if (tab !== 'scan') {
+      stopCamera();
+    } else if (!cameraOn && !cameraError) {
+      startCamera();
+    }
+  }, [tab]);
+
+  // Always release the camera when leaving the page
+  useEffect(() => () => stopCamera(), []);
 
   const resultConfig = {
     SUCCESS: { color: '#059669', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.35)', icon: '✅' },
@@ -412,44 +540,60 @@ export default function CheckinPage() {
                     aspectRatio: '4/3',
                     borderRadius: '24px',
                     overflow: 'hidden',
-                    background: flashOn
-                      ? 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.12), rgba(15,15,30,0.96) 50%)'
+                    background: cameraOn
+                      ? '#0d0d1f'
                       : 'radial-gradient(ellipse at center, rgba(124,58,237,0.12) 0%, rgba(15,15,30,0.96) 60%)',
-                    border: '1px solid rgba(124,58,237,0.2)',
+                    border: `2px solid ${detected ? 'rgba(16,185,129,0.85)' : 'rgba(124,58,237,0.25)'}`,
                     marginBottom: '14px',
                     boxShadow: '0 20px 60px -20px rgba(79,70,229,0.35), inset 0 0 80px rgba(15,15,30,0.5)',
+                    transition: 'border-color 0.2s',
                   }}
                 >
-                  <div
+                  {/* Live camera feed */}
+                  <video
+                    ref={videoRef}
+                    playsInline
+                    muted
+                    autoPlay
                     style={{
                       position: 'absolute',
-                      inset: '0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      opacity: cameraOn ? 1 : 0,
+                      transform: cameraFacing === 'front' ? 'scaleX(-1)' : 'none',
+                      transition: 'opacity 0.3s',
                     }}
-                  >
+                  />
+                  {/* Hidden canvas used for frame decoding */}
+                  <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+                  {/* Overlay: corner brackets + laser */}
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                     <div
                       style={{
-                        width: '72%',
-                        height: '65%',
-                        position: 'relative',
+                        position: 'absolute',
+                        inset: '12% 14%',
                         borderRadius: '28px',
                       }}
                       className="pulse-glow"
                     >
-                      <div
-                        className="animate-laser"
-                        style={{
-                          position: 'absolute',
-                          left: '6%',
-                          right: '6%',
-                          height: '3px',
-                          background: 'linear-gradient(90deg, transparent, #a855f7, #ec4899, transparent)',
-                          boxShadow: '0 0 24px rgba(168,85,247,0.8), 0 0 80px rgba(236,72,153,0.5)',
-                          borderRadius: '3px',
-                        }}
-                      />
+                      {cameraOn && !detected && (
+                        <div
+                          className="animate-laser"
+                          style={{
+                            position: 'absolute',
+                            left: '4%',
+                            right: '4%',
+                            top: '50%',
+                            height: '3px',
+                            background: 'linear-gradient(90deg, transparent, #a855f7, #ec4899, transparent)',
+                            boxShadow: '0 0 24px rgba(168,85,247,0.8), 0 0 80px rgba(236,72,153,0.5)',
+                            borderRadius: '3px',
+                          }}
+                        />
+                      )}
 
                       {[
                         { top: '0', left: '0', br: '20px 0 0 0', borderTop: '4px', borderLeft: '4px' },
@@ -465,7 +609,7 @@ export default function CheckinPage() {
                             height: '36px',
                             borderRadius: pos.br,
                             borderStyle: 'solid',
-                            borderColor: '#a855f7',
+                            borderColor: detected ? '#10b981' : '#a855f7',
                             borderTopWidth: pos.borderTop || '0',
                             borderLeftWidth: pos.borderLeft || '0',
                             borderRightWidth: pos.borderRight || '0',
@@ -478,37 +622,77 @@ export default function CheckinPage() {
                           }}
                         />
                       ))}
+                    </div>
 
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        pointerEvents: 'none',
-                        gap: '10px',
-                      }}>
+                    {/* Status / placeholder / error */}
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      pointerEvents: 'none',
+                      gap: '10px',
+                    }}>
+                      {!cameraOn && !cameraError && (
+                        <>
+                          <div style={{ fontSize: '48px', animation: 'bounce-slow 2s ease-in-out infinite' }}>📷</div>
+                          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', fontWeight: 600, letterSpacing: '0.5px' }}>
+                            STARTING CAMERA…
+                          </div>
+                        </>
+                      )}
+                      {cameraError && (
+                        <>
+                          <div style={{ fontSize: '40px' }}>📵</div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: 'rgba(255,255,255,0.9)',
+                            fontWeight: 600,
+                            textAlign: 'center',
+                            maxWidth: '80%',
+                            lineHeight: 1.5,
+                          }}>
+                            {cameraError}
+                          </div>
+                        </>
+                      )}
+                      {cameraOn && (
                         <div style={{
-                          fontSize: '48px',
-                          animation: 'bounce-slow 2s ease-in-out infinite',
-                        }}>📷</div>
-                        <div style={{
-                          fontSize: '12px',
-                          color: 'rgba(255,255,255,0.75)',
-                          fontWeight: 600,
+                          position: 'absolute',
+                          top: '14px',
+                          left: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: detected ? 'rgba(16,185,129,0.9)' : 'rgba(0,0,0,0.55)',
+                          color: '#fff',
+                          padding: '6px 12px',
+                          borderRadius: '999px',
+                          fontSize: '11px',
+                          fontWeight: 700,
                           letterSpacing: '0.5px',
+                          backdropFilter: 'blur(8px)',
                         }}>
-                          POSITION QR CODE IN FRAME
+                          <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: detected ? '#fff' : '#10b981',
+                            animation: detected ? 'none' : 'pulse-ring 1.8s infinite',
+                          }} />
+                          {detected ? '✓ CODE DETECTED' : 'SCANNING'}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
                   <button
-                    onClick={() => setFlashOn(f => !f)}
+                    onClick={toggleTorch}
+                    disabled={!cameraOn}
                     style={{
                       flex: 1,
                       padding: '12px',
@@ -518,7 +702,8 @@ export default function CheckinPage() {
                       color: flashOn ? '#d97706' : 'var(--text-secondary)',
                       fontSize: '13px',
                       fontWeight: 600,
-                      cursor: 'pointer',
+                      cursor: cameraOn ? 'pointer' : 'not-allowed',
+                      opacity: cameraOn ? 1 : 0.5,
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
@@ -530,7 +715,7 @@ export default function CheckinPage() {
                     {flashOn ? 'Flash ON' : 'Flash OFF'}
                   </button>
                   <button
-                    onClick={() => setCameraFacing(f => f === 'back' ? 'front' : 'back')}
+                    onClick={() => { if (cameraOn) { flipCamera(); } else { startCamera(); } }}
                     style={{
                       flex: 1,
                       padding: '12px',
@@ -549,7 +734,7 @@ export default function CheckinPage() {
                     }}
                   >
                     <span>🔄</span>
-                    {cameraFacing === 'back' ? 'Rear Cam' : 'Front Cam'}
+                    {cameraOn ? (cameraFacing === 'back' ? 'Rear Cam' : 'Front Cam') : (cameraError ? 'Retry Camera' : 'Start Camera')}
                   </button>
                 </div>
 

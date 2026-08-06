@@ -30,3 +30,6 @@ Thumbs.db
 
 .vercel
 .env*
+
+# Local tooling
+.freebuff/
