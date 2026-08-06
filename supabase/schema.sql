@@ -27,6 +27,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique_nonstaff
   ON users(email)
   WHERE role IS DISTINCT FROM 'gate_staff';
 
+-- Database rule: a gate_staff row MUST have an assigned event.
+CREATE OR REPLACE FUNCTION enforce_staff_must_have_event()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.role = 'gate_staff' AND NEW.assigned_event_id IS NULL THEN
+    RAISE EXCEPTION 'Gate staff must be assigned to an event';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_staff_must_have_event ON users;
+CREATE TRIGGER trg_staff_must_have_event
+  BEFORE INSERT OR UPDATE OF role, assigned_event_id ON users
+  FOR EACH ROW EXECUTE FUNCTION enforce_staff_must_have_event();
+
 -- Gate staff may share an email only within the SAME event.
 -- Inserting/updating a staff row whose email is already used by a
 -- DIFFERENT event (or by a non-staff account) is rejected.

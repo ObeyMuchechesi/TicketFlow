@@ -1,18 +1,17 @@
 -- ─────────────────────────────────────────────────────────────
--- Migration: Shared gate-staff login per event
+-- Migration: Enforce one-event-per-staff in the database
 -- Run this in your Supabase SQL editor on EXISTING databases.
 -- (Fresh setups created from schema.sql already include this.)
 --
--- Requirement: "Different staff can use the same login credentials
--- for the same event all at once."
---
--- - Gate staff may SHARE an email (and password) so a whole team can
---   log in with one set of credentials — e.g. gate@choir.com.
--- - Non-staff emails (super_admin / organiser) must stay unique.
--- - A staff email may only be reused WITHIN the same event — never for
---   two different events (that would make login ambiguous).
--- - Each staff row is still bound to exactly ONE event via
---   assigned_event_id, and gate staff only ever see that event.
+-- Rules enforced here (not just in app code):
+--   1. Every gate staff member MUST be assigned to exactly ONE event
+--      (assigned_event_id is required for gate_staff rows).
+--   2. Gate staff may SHARE an email+password within the SAME event so a
+--      whole team can log in with one set of credentials.
+--   3. A staff email may never be reused across two DIFFERENT events
+--      (that would make login ambiguous), nor collide with an admin/
+--      organiser email.
+--   4. Non-staff emails (super_admin / organiser) stay globally unique.
 -- ─────────────────────────────────────────────────────────────
 
 -- 0) Ensure the one-event staff scoping column exists (from migration
@@ -29,7 +28,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique_nonstaff
   ON users(email)
   WHERE role IS DISTINCT FROM 'gate_staff';
 
--- 3) Gate staff may share an email only within the SAME event.
+-- 3) Database rule: a gate_staff row MUST have an assigned event. Prevents
+--    accidentally creating (or editing into) an unassigned staff account.
+--    NOTE: existing gate_staff rows keep their current value (the trigger is
+--    INSERT/UPDATE only). Any staff that were created without an assignment
+--    will see no events until an organiser assigns them in Admin -> Staff.
+CREATE OR REPLACE FUNCTION enforce_staff_must_have_event()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.role = 'gate_staff' AND NEW.assigned_event_id IS NULL THEN
+    RAISE EXCEPTION 'Gate staff must be assigned to an event';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_staff_must_have_event ON users;
+CREATE TRIGGER trg_staff_must_have_event
+  BEFORE INSERT OR UPDATE OF role, assigned_event_id ON users
+  FOR EACH ROW EXECUTE FUNCTION enforce_staff_must_have_event();
+
+-- 4) Database rule: gate staff may share an email only within the SAME event.
 --    Inserting/updating a staff row whose email is already used by a
 --    DIFFERENT event (or by a non-staff account) is rejected.
 CREATE OR REPLACE FUNCTION enforce_staff_email_per_event()

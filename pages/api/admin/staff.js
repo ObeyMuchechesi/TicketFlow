@@ -51,6 +51,7 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { full_name, email, password, phone, assigned_event_id } = req.body;
       if (!full_name || !email || !password) return res.status(400).json({ error: 'Missing required fields' });
+      if (!assigned_event_id) return res.status(400).json({ error: 'Gate staff must be assigned to an event' });
       const assignError = await validateAssignment(requester, assigned_event_id, supabase);
       if (assignError) return res.status(403).json({ error: assignError });
       const password_hash = await hashPassword(password);

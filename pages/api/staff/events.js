@@ -13,24 +13,13 @@ export default async function handler(req, res) {
 
     const select = 'id, slug, event_name, date, time, venue, status, theme_color';
 
-    // Gate staff: only their assigned event
+    // Gate staff: ONLY their assigned event. Fail closed — if the account has
+    // no assignment (or the DB column is missing), they see NOTHING, never all
+    // events. Staff must be assigned before they can access any event.
     if (user.role === 'gate_staff') {
-      let assignedEventId = null;
-      const { data: profile } = await supabase
-        .from('users')
-        .select('assigned_event_id')
-        .eq('id', user.userId)
-        .single();
-      assignedEventId = profile?.assigned_event_id || null;
-
-      // Fallback for DBs not migrated: staff see all published events as before
+      const assignedEventId = user.assignedEventId;
       if (!assignedEventId) {
-        const { data: fallback } = await supabase
-          .from('events')
-          .select(`${select}, ticket_types (id, name, price, color, quantity_available, quantity_sold)`)
-          .eq('status', 'published')
-          .order('date', { ascending: true });
-        return res.json({ events: fallback || [], assignedEventId: null });
+        return res.json({ events: [], assignedEventId: null });
       }
 
       const { data } = await supabase
