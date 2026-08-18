@@ -29,7 +29,7 @@ export default function EcoCashPayment({
   }, []);
 
   const buildUssdCode = () => {
-    const amt = Number(totalPrice).toFixed(2);
+    const amt = Math.round(Number(totalPrice));
     const code = (ecocashCode || '').replace(/[^0-9A-Za-z]/g, '').trim();
     if (ecocashType === 'agent') {
       return `*153*2*2${code}*${amt}#`;
