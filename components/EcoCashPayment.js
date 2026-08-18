@@ -32,15 +32,15 @@ export default function EcoCashPayment({
     const amt = Number(totalPrice).toFixed(2);
     const code = (ecocashCode || '').replace(/[^0-9A-Za-z]/g, '').trim();
     if (ecocashType === 'agent') {
-      return `*151*2*${code}*${amt}#`;
+      return `*153*2*2${code}*${amt}#`;
     }
     if (ecocashType === 'biller') {
       const ts = Date.now().toString(36).toUpperCase().slice(-4);
       const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
-      return `*151*1*${code}*TF${ts}${rand}*${amt}#`;
+      return `*153*1*1*${code}*TF${ts}${rand}*${amt}#`;
     }
     if (ecocashType === 'number') {
-      return `*151*2*2*${amt}*${ecocashPhone}#`;
+      return `*153*1*1*${ecocashPhone}*${amt}#`;
     }
     return null;
   };
