@@ -1346,10 +1346,11 @@ function StepSchedule({ form, setF }) {
 
 function StepPayments({ form, setF }) {
   // Live preview of the USSD shortcode customers will dial
-  const ecocashPreview = form.ecocash_type !== 'none' && form.ecocash_code
+  const ecocashPreview = form.ecocash_type !== 'none' && (form.ecocash_code || form.ecocash_phone)
     ? buildEcocashShortcode({
         type: form.ecocash_type,
         code: form.ecocash_code,
+        phone: form.ecocash_phone,
         amount: '15.00',
         reference: 'TF8F3K2Q',
       })
@@ -1453,11 +1454,12 @@ function StepPayments({ form, setF }) {
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
               EcoCash Payment Type
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
               {[
                 { id: 'none', label: 'Not Using', icon: X },
                 { id: 'biller', label: 'Biller Code', icon: Landmark },
                 { id: 'agent', label: 'Agent Code', icon: User },
+                { id: 'number', label: 'Direct Number', icon: Smartphone },
               ].map(opt => (
                 <label
                   key={opt.id}
@@ -1487,20 +1489,22 @@ function StepPayments({ form, setF }) {
 
           {form.ecocash_type !== 'none' && (
             <>
+              {form.ecocash_type !== 'number' && (
+                <Input
+                  label={form.ecocash_type === 'biller' ? 'Biller Code' : 'Agent Code'}
+                  placeholder={form.ecocash_type === 'biller' ? 'e.g. 12345' : 'e.g. 67890'}
+                  value={form.ecocash_code}
+                  onChange={e => setF('ecocash_code', e.target.value)}
+                  helper={form.ecocash_type === 'biller' ? 'Your EcoCash biller code for receiving payments' : 'Your EcoCash agent code for receiving payments'}
+                />
+              )}
               <Input
-                label={form.ecocash_type === 'biller' ? 'Biller Code' : 'Agent Code'}
-                placeholder={form.ecocash_type === 'biller' ? 'e.g. 12345' : 'e.g. 67890'}
-                value={form.ecocash_code}
-                onChange={e => setF('ecocash_code', e.target.value)}
-                helper={form.ecocash_type === 'biller' ? 'Your EcoCash biller code for receiving payments' : 'Your EcoCash agent code for receiving payments'}
-              />
-              <Input
-                label="Recipient Phone Number"
+                label={form.ecocash_type === 'number' ? 'Your EcoCash Number' : 'Recipient Phone Number'}
                 type="tel"
                 placeholder="e.g. 0771234567 or 0781234567"
                 value={form.ecocash_phone}
                 onChange={e => setF('ecocash_phone', e.target.value)}
-                helper="Mobile number where EcoCash payments will be received"
+                helper={form.ecocash_type === 'number' ? 'The mobile number that will receive Send Money payments directly' : 'Mobile number where EcoCash payments will be received'}
               />
 
               {ecocashPreview && (

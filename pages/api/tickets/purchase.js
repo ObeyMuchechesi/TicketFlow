@@ -174,6 +174,7 @@ export default async function handler(req, res) {
       const shortcode = buildEcocashShortcode({
         type: event?.ecocash_type,
         code: event?.ecocash_code,
+        phone: event?.ecocash_phone,
         amount: total,
         reference,
       });
