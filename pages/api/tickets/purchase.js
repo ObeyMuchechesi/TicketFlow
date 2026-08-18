@@ -212,7 +212,8 @@ export default async function handler(req, res) {
         buyer_email: buyerEmail,
         buyer_phone: buyerPhone || null,
         qr_code_token: token,
-        status: 'active',
+        // EcoCash tickets stay 'pending' until transaction reference is verified
+        status: (paymentMethod === 'ecocash' && !isFree) ? 'pending' : 'active',
       });
     }
 
@@ -258,9 +259,10 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fire-and-forget digital ticket email + WhatsApp handoff — never blocks
-    // the reservation response
-    const delivery = Promise.all([
+    // Skip delivery for EcoCash — tickets are only sent after payment verification.
+    // For free tickets, Stripe, and bank transfers, send immediately.
+    const shouldDeliver = paymentMethod !== 'ecocash' || isFree;
+    const delivery = shouldDeliver ? Promise.all([
       supabase.from('events').select('event_name, date, time, venue').eq('id', eventId).single(),
       supabase.from('tickets').select('*').eq('qr_code_token', tokens[0]).single(),
     ]).then(async ([evRes, tkRes]) => {
@@ -272,7 +274,7 @@ export default async function handler(req, res) {
     }).catch(err => {
       console.error('Ticket delivery failed:', err);
       return null;
-    });
+    }) : Promise.resolve(null);
 
     // Await the WhatsApp handoff URL so we can return it to the buyer — the
     // email send stays fire-and-forget.

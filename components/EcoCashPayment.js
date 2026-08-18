@@ -14,6 +14,7 @@ export default function EcoCashPayment({
   ecocashCode = '',
   ecocashPhone = '',
   buyerPhone = '',
+  ticketToken = '',
   onPaymentConfirmed,
   onBack,
 }) {
@@ -22,6 +23,9 @@ export default function EcoCashPayment({
   const [ussdCode, setUssdCode] = useState('');
   const [deviceType, setDeviceType] = useState('android');
   const [copied, setCopied] = useState(false);
+  const [transactionRef, setTransactionRef] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
@@ -80,6 +84,33 @@ export default function EcoCashPayment({
 
   const openDialer = () => {
     window.location.href = `tel:${ussdCode.replace(/#/g, '%23')}`;
+  };
+
+  const verifyPayment = async () => {
+    if (!transactionRef.trim()) {
+      setVerifyError('Please enter the transaction reference from your EcoCash SMS');
+      return;
+    }
+    setVerifying(true);
+    setVerifyError('');
+    try {
+      const res = await fetch('/api/tickets/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: ticketToken, transactionRef: transactionRef.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyError(data.error || 'Verification failed');
+        setVerifying(false);
+        return;
+      }
+      setStep('confirmed');
+      if (onPaymentConfirmed) onPaymentConfirmed();
+    } catch {
+      setVerifyError('Network error. Please try again.');
+    }
+    setVerifying(false);
   };
 
   const accent = '#10b981';
@@ -191,7 +222,7 @@ export default function EcoCashPayment({
             <p style={{ fontSize: '24px', fontWeight: 800, color: accent, margin: 0 }}>${Number(totalPrice).toFixed(2)}</p>
           </div>
 
-          <button onClick={() => { setStep('confirm'); if (onPaymentConfirmed) onPaymentConfirmed(); }}
+          <button onClick={() => setStep('verify_reference')}
             style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, #06b6d4)`, color: 'white', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 700, fontSize: '16px', cursor: 'pointer', marginBottom: '12px' }}>
             I Have Completed Payment
           </button>
@@ -260,7 +291,7 @@ export default function EcoCashPayment({
             </div>
           </div>
 
-          <button onClick={() => { setStep('confirm'); if (onPaymentConfirmed) onPaymentConfirmed(); }}
+          <button onClick={() => setStep('verify_reference')}
             style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, #06b6d4)`, color: 'white', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 700, fontSize: '16px', cursor: 'pointer', marginBottom: '12px' }}>
             I Have Completed Payment
           </button>
@@ -271,8 +302,79 @@ export default function EcoCashPayment({
         </div>
       )}
 
-      {/* STEP 4: Confirmation */}
-      {step === 'confirm' && (
+      {/* STEP 4: Verify Transaction Reference */}
+      {step === 'verify_reference' && (
+        <div style={{ padding: '10px 0' }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <div style={{
+              width: '72px', height: '72px', borderRadius: '50%',
+              background: `linear-gradient(135deg, #f59e0b, #f97316)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 20px',
+            }}>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <h4 style={{ fontSize: '20px', marginBottom: '8px', fontWeight: 700 }}>Enter Transaction Reference</h4>
+            <p style={{ color: 'var(--text-muted, #ffffff80)', fontSize: '14px', lineHeight: 1.6 }}>
+              After paying, you received an SMS from EcoCash. Enter the transaction reference code from that SMS below to activate your ticket.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text, #fff)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              EcoCash Transaction Reference *
+            </label>
+            <input
+              type="text"
+              value={transactionRef}
+              onChange={(e) => { setTransactionRef(e.target.value); setVerifyError(''); }}
+              placeholder="e.g. TF8F3K2Q"
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: 'var(--input-bg, rgba(255,255,255,0.05))',
+                border: '1px solid var(--panel-border, rgba(255,255,255,0.15))',
+                borderRadius: '12px', color: 'var(--text, #fff)',
+                fontSize: '16px', outline: 'none', boxSizing: 'border-box',
+                fontFamily: 'var(--font-mono, monospace)',
+              }}
+            />
+            <p style={{ color: 'var(--text-dimmed, #ffffff40)', fontSize: '11px', marginTop: '8px' }}>
+              Check your SMS inbox for a message from EcoCash containing this reference.
+            </p>
+          </div>
+
+          {verifyError && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '12px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px' }}>
+              {verifyError}
+            </div>
+          )}
+
+          <button onClick={verifyPayment}
+            disabled={verifying || !transactionRef.trim()}
+            style={{
+              width: '100%',
+              background: verifying ? 'var(--text-dimmed, #ffffff30)' : `linear-gradient(135deg, ${accent}, #06b6d4)`,
+              color: 'white', border: 'none', padding: '16px', borderRadius: '14px',
+              fontWeight: 700, fontSize: '16px',
+              cursor: verifying ? 'not-allowed' : 'pointer',
+              marginBottom: '12px',
+            }}>
+            {verifying ? 'Verifying Payment...' : 'Verify & Activate Ticket'}
+          </button>
+          <button onClick={() => setStep('enter_phone')}
+            style={{ width: '100%', background: 'transparent', color: 'var(--text-muted, #ffffff60)', border: '1px solid var(--panel-border, rgba(255,255,255,0.2))', padding: '14px', borderRadius: '14px', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>
+            Back
+          </button>
+        </div>
+      )}
+
+      {/* STEP 5: Payment Confirmed */}
+      {step === 'confirmed' && (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <div style={{
             width: '72px', height: '72px', borderRadius: '50%',
@@ -284,23 +386,15 @@ export default function EcoCashPayment({
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           </div>
-          <h4 style={{ fontSize: '20px', marginBottom: '10px', fontWeight: 700 }}>Payment Confirmation</h4>
-          <p style={{ color: 'var(--text-muted, #ffffff60)', fontSize: '14px', marginBottom: '20px', lineHeight: 1.6 }}>
-            Please confirm that your payment was successful.
+          <h4 style={{ fontSize: '20px', marginBottom: '10px', fontWeight: 700 }}>Payment Verified!</h4>
+          <p style={{ color: 'var(--text-muted, #ffffff60)', fontSize: '14px', lineHeight: 1.6 }}>
+            Your payment has been confirmed. Your ticket is now active.
           </p>
-          <div style={{ background: 'var(--input-bg, rgba(255,255,255,0.05))', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
-            <p style={{ color: 'var(--text-dimmed, #ffffff40)', fontSize: '12px', margin: '0 0 4px' }}>Amount Paid</p>
-            <p style={{ fontSize: '24px', fontWeight: 800, color: accent, margin: 0 }}>${Number(totalPrice).toFixed(2)}</p>
-          </div>
-          <button onClick={() => { if (onPaymentConfirmed) onPaymentConfirmed(); }}
-            style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, #06b6d4)`, color: 'white', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 700, fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            Confirm Payment &amp; Get Tickets
-          </button>
         </div>
       )}
 
       {/* Manual Fallback */}
-      {step !== 'confirm' && ussdCode && (
+      {(step === 'processing' || step === 'iphone_instructions') && ussdCode && (
         <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed var(--panel-border, rgba(255,255,255,0.1))' }}>
           <p style={{ fontSize: '12px', color: 'var(--text-dimmed, #ffffff40)', textAlign: 'center', margin: 0 }}>
             Having trouble? Manually dial this code: <strong style={{ color: 'var(--text, #fff)' }}>{ussdCode}</strong>

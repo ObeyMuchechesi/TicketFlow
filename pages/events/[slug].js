@@ -1215,6 +1215,7 @@ export default function EventPage({ event: serverEvent, recommended: serverRecom
                       ecocashCode={ecocashData.code}
                       ecocashPhone={ecocashData.phone}
                       buyerPhone={simulatedEcocash}
+                      ticketToken={orderId}
                       onPaymentConfirmed={() => setStep('confirm')}
                       onBack={() => setStep('payment')}
                     />
