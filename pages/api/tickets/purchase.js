@@ -184,6 +184,7 @@ export default async function handler(req, res) {
         reference,
         amount: total.toFixed(2),
         type: event?.ecocash_type || 'none',
+        code: event?.ecocash_code || null,
         phone: event?.ecocash_phone || null,
         configured: Boolean(shortcode),
       };
