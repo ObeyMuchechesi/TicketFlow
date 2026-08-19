@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard, CalendarDays, CalendarPlus, Users, BadgePercent, BarChart3,
   QrCode, Globe, Search, Bell, Plus, Palette, LogOut, ArrowLeft,
-  Ticket, Download, UserPlus, ScanLine, Menu, X,
+  Ticket, Download, UserPlus, ScanLine, Menu, X, Shield,
 } from 'lucide-react';
 
 const NAV_MAIN = [
@@ -15,6 +15,7 @@ const NAV_MAIN = [
 
 const NAV_MANAGE = [
   { href: '/admin/staff', label: 'Staff', icon: Users },
+  { href: '/admin/payments', label: 'Payment Review', icon: Shield },
   { href: '/admin/promo-codes', label: 'Promo Codes', icon: BadgePercent },
   { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
 ];

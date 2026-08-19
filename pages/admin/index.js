@@ -6,7 +6,7 @@ import {
   DollarSign, Ticket, Users, CheckCircle2, PartyPopper, Gauge, CircleDollarSign, Target,
   TrendingUp, TrendingDown, BarChart3, CalendarDays, MapPin, Sparkles, Download,
   Zap, Activity, Inbox, ChevronRight, Megaphone, RefreshCw, UserPlus, BadgePercent,
-  QrCode, Plus, Flame, TicketCheck,
+  QrCode, Plus, Flame, TicketCheck, Shield,
 } from 'lucide-react';
 
 const GRADIENTS = [
@@ -271,6 +271,7 @@ export default function AdminDashboard() {
                 { icon: QrCode, bg: 'rgba(16,185,129,0.12)', title: 'Scan Tickets', sub: 'Gate scanner', href: '/staff' },
                 { icon: BarChart3, bg: 'rgba(59,130,246,0.12)', title: 'View Reports', sub: 'Analytics & exports', href: '/admin/reports' },
                 { icon: Users, bg: 'rgba(236,72,153,0.12)', title: 'Manage Staff', sub: 'Add gate staff', href: '/admin/staff' },
+                { icon: Shield, bg: 'rgba(59,130,246,0.12)', title: 'Payment Review', sub: 'Review screenshots', href: '/admin/payments' },
                 { icon: BadgePercent, bg: 'rgba(245,158,11,0.12)', title: 'Promo Codes', sub: 'Create discounts', href: '/admin/promo-codes' },
                 { icon: Download, bg: 'rgba(239,68,68,0.08)', title: 'Export Data', sub: 'CSV / PDF reports', href: '/admin/reports' },
               ].map((a, i) => (
