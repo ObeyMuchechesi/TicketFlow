@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * EcoCash Payment Component
  * 
- * Handles USSD-based EcoCash payments with platform-specific behavior:
+ * Handles USSD-based EcoCash payments with:
  * - Android: Auto-dials the USSD code
- * - iPhone: Shows copy button + instructions (Apple blocks auto-dial)
- * - Universal: Manual code display as fallback
+ * - iPhone: Shows copy button + instructions
+ * - Screenshot upload with AI OCR to extract transaction reference
+ * - Manual reference entry as fallback
  */
 export default function EcoCashPayment({
   totalPrice,
@@ -23,13 +24,38 @@ export default function EcoCashPayment({
   const [ussdCode, setUssdCode] = useState('');
   const [deviceType, setDeviceType] = useState('android');
   const [copied, setCopied] = useState(false);
+
+  // Screenshot & OCR state
+  const [screenshot, setScreenshot] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [ocrProcessing, setOcrProcessing] = useState(false);
+  const [ocrResult, setOcrResult] = useState('');
+  const [ocrConfidence, setOcrConfidence] = useState(0);
+  const [ocrError, setOcrError] = useState('');
+  const [extractedRef, setExtractedRef] = useState('');
+  const [extractedAmount, setExtractedAmount] = useState('');
+  const [verifyMethod, setVerifyMethod] = useState(''); // 'screenshot' or 'manual'
+  const fileInputRef = useRef(null);
+  const tesseractWorkerRef = useRef(null);
+
+  // Manual reference state
   const [transactionRef, setTransactionRef] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
     setDeviceType(/iphone|ipad|ipod/.test(ua) ? 'iphone' : 'android');
+  }, []);
+
+  // Cleanup tesseract worker on unmount
+  useEffect(() => {
+    return () => {
+      if (tesseractWorkerRef.current) {
+        tesseractWorkerRef.current.terminate();
+      }
+    };
   }, []);
 
   const buildUssdCode = () => {
@@ -86,31 +112,186 @@ export default function EcoCashPayment({
     window.location.href = `tel:${ussdCode.replace(/#/g, '%23')}`;
   };
 
-  const verifyPayment = async () => {
-    if (!transactionRef.trim()) {
-      setVerifyError('Please enter the transaction reference from your EcoCash SMS');
+  /**
+   * Handle screenshot file selection
+   */
+  const handleScreenshotSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setOcrError('Please select an image file (JPG, PNG, etc.)');
       return;
     }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setOcrError('Image must be less than 10MB');
+      return;
+    }
+
+    setOcrError('');
+    setOcrResult('');
+    setOcrConfidence(0);
+    setExtractedRef('');
+    setExtractedAmount('');
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setScreenshot(ev.target.result);
+      setScreenshotPreview(ev.target.result);
+      // Auto-start OCR
+      processOCR(ev.target.result);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  /**
+   * Run Tesseract.js OCR on the screenshot to extract transaction reference
+   */
+  const processOCR = async (imageData) => {
+    setOcrProcessing(true);
+    setOcrError('');
+    setOcrResult('');
+    setExtractedRef('');
+    setExtractedAmount('');
+
+    try {
+      // Dynamic import to avoid SSR issues
+      const Tesseract = (await import('tesseract.js')).default;
+
+      const { data } = await Tesseract.recognize(imageData, 'eng', {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            // Progress updates if needed
+          }
+        },
+      });
+
+      const text = data.text || '';
+      setOcrResult(text);
+      setOcrConfidence(Math.round(data.confidence || 0));
+
+      // Parse the OCR text to extract transaction reference and amount
+      const parsed = parseEcoCashText(text);
+      if (parsed.reference) {
+        setExtractedRef(parsed.reference);
+      }
+      if (parsed.amount) {
+        setExtractedAmount(parsed.amount);
+      }
+
+      if (!parsed.reference) {
+        setOcrError('Could not auto-detect the transaction reference. Please enter it manually below, or try a clearer screenshot.');
+      }
+    } catch (err) {
+      console.error('OCR error:', err);
+      setOcrError('Failed to process the image. Please enter the reference manually.');
+    }
+    setOcrProcessing(false);
+  };
+
+  /**
+   * Parse OCR text to extract EcoCash transaction details
+   */
+  const parseEcoCashText = (text) => {
+    const result = { reference: '', amount: '', phone: '' };
+
+    // Normalize text
+    const normalized = text.replace(/\s+/g, ' ').trim();
+
+    // Extract transaction reference patterns
+    // EcoCash refs are typically like: TF..., TX..., or alphanumeric 6-20 chars
+    const refPatterns = [
+      /(?:ref(?:erence)?|txn|transaction|id)[:\s#]*([A-Z0-9]{4,20})/i,
+      /\b(TF[A-Z0-9]{4,16})\b/i,
+      /\b(TX[A-Z0-9]{4,16})\b/i,
+      /\b([A-Z0-9]{8,20})\b/,  // Generic alphanumeric pattern as fallback
+    ];
+
+    for (const pattern of refPatterns) {
+      const match = normalized.match(pattern);
+      if (match) {
+        result.reference = match[1];
+        break;
+      }
+    }
+
+    // Extract amount patterns
+    const amountPatterns = [
+      /(?:amount|total|paid)[:\s]*\$?([\d,]+\.?\d*)/i,
+      /\$([\d,]+\.?\d*)/,
+      /\b(USD?\s*[\d,]+\.?\d*)\b/i,
+    ];
+
+    for (const pattern of amountPatterns) {
+      const match = normalized.match(pattern);
+      if (match) {
+        result.amount = match[1].replace(/,/g, '');
+        break;
+      }
+    }
+
+    // Extract phone number
+    const phoneMatch = normalized.match(/\b(07[0-9]{8})\b/);
+    if (phoneMatch) {
+      result.phone = phoneMatch[1];
+    }
+
+    return result;
+  };
+
+  /**
+   * Verify payment with screenshot or manual reference
+   */
+  const verifyPayment = async () => {
+    const ref = verifyMethod === 'screenshot' ? extractedRef : transactionRef.trim();
+
+    if (!ref) {
+      setVerifyError(verifyMethod === 'screenshot'
+        ? 'Please upload a screenshot or enter the reference manually'
+        : 'Please enter the transaction reference from your EcoCash SMS');
+      return;
+    }
+
     setVerifying(true);
     setVerifyError('');
+    setUploading(true);
+
     try {
-      const res = await fetch('/api/tickets/verify-payment', {
+      const body = {
+        token: ticketToken,
+        extractedRef: ref,
+        extractedAmount: extractedAmount || null,
+      };
+
+      // Include screenshot if available
+      if (screenshot && verifyMethod === 'screenshot') {
+        body.screenshot = screenshot;
+      }
+
+      const res = await fetch('/api/tickets/verify-screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: ticketToken, transactionRef: transactionRef.trim() }),
+        body: JSON.stringify(body),
       });
+
       const data = await res.json();
       if (!res.ok) {
         setVerifyError(data.error || 'Verification failed');
         setVerifying(false);
+        setUploading(false);
         return;
       }
+
       setStep('confirmed');
       if (onPaymentConfirmed) onPaymentConfirmed();
     } catch {
       setVerifyError('Network error. Please try again.');
     }
     setVerifying(false);
+    setUploading(false);
   };
 
   const accent = '#10b981';
@@ -181,7 +362,7 @@ export default function EcoCashPayment({
           }}>
             <span style={{ color: 'var(--text-muted, #ffffff60)', fontSize: '14px' }}>Total Amount</span>
             <span style={{ fontSize: '24px', fontWeight: 800, color: accent, fontFamily: 'var(--font-display, inherit)' }}>
-              ${Number(totalPrice).toFixed(2)}
+              ${Math.round(Number(totalPrice))}
             </span>
           </div>
 
@@ -198,7 +379,7 @@ export default function EcoCashPayment({
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
             }}
           >
-            Pay ${Number(totalPrice).toFixed(2)} - EcoCash
+            Pay ${Math.round(Number(totalPrice))} - EcoCash
           </button>
         </div>
       )}
@@ -219,10 +400,10 @@ export default function EcoCashPayment({
 
           <div style={{ background: 'var(--input-bg, rgba(255,255,255,0.05))', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
             <p style={{ color: 'var(--text-dimmed, #ffffff40)', fontSize: '12px', margin: '0 0 4px' }}>Amount to Pay</p>
-            <p style={{ fontSize: '24px', fontWeight: 800, color: accent, margin: 0 }}>${Number(totalPrice).toFixed(2)}</p>
+            <p style={{ fontSize: '24px', fontWeight: 800, color: accent, margin: 0 }}>${Math.round(Number(totalPrice))}</p>
           </div>
 
-          <button onClick={() => setStep('verify_reference')}
+          <button onClick={() => setStep('verify_proof')}
             style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, #06b6d4)`, color: 'white', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 700, fontSize: '16px', cursor: 'pointer', marginBottom: '12px' }}>
             I Have Completed Payment
           </button>
@@ -291,7 +472,7 @@ export default function EcoCashPayment({
             </div>
           </div>
 
-          <button onClick={() => setStep('verify_reference')}
+          <button onClick={() => setStep('verify_proof')}
             style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, #06b6d4)`, color: 'white', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 700, fontSize: '16px', cursor: 'pointer', marginBottom: '12px' }}>
             I Have Completed Payment
           </button>
@@ -302,8 +483,8 @@ export default function EcoCashPayment({
         </div>
       )}
 
-      {/* STEP 4: Verify Transaction Reference */}
-      {step === 'verify_reference' && (
+      {/* STEP 4: Verify Payment Proof (Screenshot Upload OR Manual Reference) */}
+      {step === 'verify_proof' && (
         <div style={{ padding: '10px 0' }}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <div style={{
@@ -313,59 +494,318 @@ export default function EcoCashPayment({
               margin: '0 auto 20px',
             }}>
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+            <h4 style={{ fontSize: '20px', marginBottom: '8px', fontWeight: 700 }}>Verify Your Payment</h4>
+            <p style={{ color: 'var(--text-muted, #ffffff80)', fontSize: '14px', lineHeight: 1.6 }}>
+              Upload a screenshot of your EcoCash payment confirmation, or enter the transaction reference manually.
+            </p>
+          </div>
+
+          {/* Method Toggle */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+            <button
+              onClick={() => { setVerifyMethod('screenshot'); setVerifyError(''); }}
+              style={{
+                flex: 1, padding: '12px', borderRadius: '12px', border: '2px solid',
+                borderColor: verifyMethod === 'screenshot' ? accent : 'var(--panel-border, rgba(255,255,255,0.15))',
+                background: verifyMethod === 'screenshot' ? 'rgba(16,185,129,0.1)' : 'var(--input-bg, rgba(255,255,255,0.03))',
+                color: 'var(--text, #fff)', fontWeight: 600, fontSize: '13px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              Upload Screenshot
+            </button>
+            <button
+              onClick={() => { setVerifyMethod('manual'); setVerifyError(''); }}
+              style={{
+                flex: 1, padding: '12px', borderRadius: '12px', border: '2px solid',
+                borderColor: verifyMethod === 'manual' ? accent : 'var(--panel-border, rgba(255,255,255,0.15))',
+                background: verifyMethod === 'manual' ? 'rgba(16,185,129,0.1)' : 'var(--input-bg, rgba(255,255,255,0.03))',
+                color: 'var(--text, #fff)', fontWeight: 600, fontSize: '13px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
               </svg>
+              Enter Manually
+            </button>
+          </div>
+
+          {/* Screenshot Upload Option */}
+          {verifyMethod === 'screenshot' && (
+            <div style={{ marginBottom: '16px' }}>
+              {!screenshotPreview ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: '2px dashed var(--panel-border, rgba(255,255,255,0.2))',
+                    borderRadius: '14px', padding: '32px 20px', textAlign: 'center',
+                    cursor: 'pointer', background: 'var(--input-bg, rgba(255,255,255,0.02))',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted, #ffffff60)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                  <p style={{ color: 'var(--text-muted, #ffffff80)', fontSize: '14px', fontWeight: 600, margin: '0 0 6px' }}>
+                    Tap to upload payment screenshot
+                  </p>
+                  <p style={{ color: 'var(--text-dimmed, #ffffff40)', fontSize: '12px', margin: 0 }}>
+                    JPG, PNG up to 10MB. AI will read the transaction reference automatically.
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleScreenshotSelect}
+                    style={{ display: 'none' }}
+                  />
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <div style={{
+                    borderRadius: '14px', overflow: 'hidden',
+                    border: '2px solid var(--panel-border, rgba(255,255,255,0.15))',
+                    position: 'relative',
+                  }}>
+                    <img
+                      src={screenshotPreview}
+                      alt="Payment screenshot"
+                      style={{ width: '100%', maxHeight: '250px', objectFit: 'contain', display: 'block' }}
+                    />
+                    <button
+                      onClick={() => {
+                        setScreenshot(null);
+                        setScreenshotPreview(null);
+                        setOcrResult('');
+                        setOcrConfidence(0);
+                        setExtractedRef('');
+                        setExtractedAmount('');
+                        setOcrError('');
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      style={{
+                        position: 'absolute', top: '8px', right: '8px',
+                        background: 'rgba(0,0,0,0.7)', color: 'white',
+                        border: 'none', borderRadius: '8px', padding: '6px 12px',
+                        cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  {/* OCR Processing Indicator */}
+                  {ocrProcessing && (
+                    <div style={{
+                      marginTop: '12px', padding: '16px',
+                      background: 'rgba(16,185,129,0.1)',
+                      borderRadius: '12px', textAlign: 'center',
+                    }}>
+                      <div style={{
+                        width: '32px', height: '32px', borderRadius: '50%',
+                        border: '3px solid rgba(16,185,129,0.3)',
+                        borderTopColor: accent,
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto 12px',
+                      }} />
+                      <p style={{ color: accent, fontSize: '14px', fontWeight: 600, margin: 0 }}>
+                        AI is reading your screenshot...
+                      </p>
+                      <p style={{ color: 'var(--text-dimmed, #ffffff40)', fontSize: '12px', margin: '4px 0 0' }}>
+                        Extracting transaction reference automatically
+                      </p>
+                    </div>
+                  )}
+
+                  {/* OCR Result */}
+                  {!ocrProcessing && ocrResult && (
+                    <div style={{
+                      marginTop: '12px', padding: '16px',
+                      background: extractedRef ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+                      borderRadius: '12px',
+                      border: `1px solid ${extractedRef ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>{extractedRef ? '\u2705' : '\u26a0\ufe0f'}</span>
+                        <span style={{ color: 'var(--text, #fff)', fontSize: '14px', fontWeight: 600 }}>
+                          {extractedRef ? 'Reference Detected!' : 'Could not auto-detect reference'}
+                        </span>
+                        {ocrConfidence > 0 && (
+                          <span style={{
+                            marginLeft: 'auto',
+                            fontSize: '11px', fontWeight: 600,
+                            color: ocrConfidence > 70 ? accent : '#f59e0b',
+                            background: ocrConfidence > 70 ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                            padding: '2px 8px', borderRadius: '6px',
+                          }}>
+                            {ocrConfidence}% confidence
+                          </span>
+                        )}
+                      </div>
+                      {extractedRef && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ color: 'var(--text-muted, #ffffff60)', fontSize: '12px' }}>Reference:</span>
+                          <code style={{ color: accent, fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, fontSize: '15px' }}>
+                            {extractedRef}
+                          </code>
+                        </div>
+                      )}
+                      {extractedAmount && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ color: 'var(--text-muted, #ffffff60)', fontSize: '12px' }}>Amount:</span>
+                          <span style={{ color: 'var(--text, #fff)', fontWeight: 600, fontSize: '14px' }}>${extractedAmount}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Re-upload button */}
+              {screenshotPreview && !ocrProcessing && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: '100%', marginTop: '12px',
+                    background: 'transparent', color: accent,
+                    border: `1px solid ${accent}`, padding: '10px',
+                    borderRadius: '10px', fontWeight: 600, fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Upload Different Screenshot
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleScreenshotSelect}
+                style={{ display: 'none' }}
+              />
             </div>
-            <h4 style={{ fontSize: '20px', marginBottom: '8px', fontWeight: 700 }}>Enter Transaction Reference</h4>
-            <p style={{ color: 'var(--text-muted, #ffffff80)', fontSize: '14px', lineHeight: 1.6 }}>
-              After paying, you received an SMS from EcoCash. Enter the transaction reference code from that SMS below to activate your ticket.
-            </p>
-          </div>
+          )}
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text, #fff)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              EcoCash Transaction Reference *
-            </label>
-            <input
-              type="text"
-              value={transactionRef}
-              onChange={(e) => { setTransactionRef(e.target.value); setVerifyError(''); }}
-              placeholder="e.g. TF8F3K2Q"
-              style={{
-                width: '100%', padding: '14px 16px',
-                background: 'var(--input-bg, rgba(255,255,255,0.05))',
-                border: '1px solid var(--panel-border, rgba(255,255,255,0.15))',
-                borderRadius: '12px', color: 'var(--text, #fff)',
-                fontSize: '16px', outline: 'none', boxSizing: 'border-box',
-                fontFamily: 'var(--font-mono, monospace)',
-              }}
-            />
-            <p style={{ color: 'var(--text-dimmed, #ffffff40)', fontSize: '11px', marginTop: '8px' }}>
-              Check your SMS inbox for a message from EcoCash containing this reference.
-            </p>
-          </div>
+          {/* Manual Reference Entry */}
+          {verifyMethod === 'manual' && (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text, #fff)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                EcoCash Transaction Reference *
+              </label>
+              <input
+                type="text"
+                value={transactionRef}
+                onChange={(e) => { setTransactionRef(e.target.value); setVerifyError(''); }}
+                placeholder="e.g. TF8F3K2Q"
+                style={{
+                  width: '100%', padding: '14px 16px',
+                  background: 'var(--input-bg, rgba(255,255,255,0.05))',
+                  border: '1px solid var(--panel-border, rgba(255,255,255,0.15))',
+                  borderRadius: '12px', color: 'var(--text, #fff)',
+                  fontSize: '16px', outline: 'none', boxSizing: 'border-box',
+                  fontFamily: 'var(--font-mono, monospace)',
+                }}
+              />
+              <p style={{ color: 'var(--text-dimmed, #ffffff40)', fontSize: '11px', marginTop: '8px' }}>
+                Check your SMS inbox for a message from EcoCash containing this reference.
+              </p>
+            </div>
+          )}
 
+          {/* Manual override: if screenshot was uploaded but OCR failed, allow manual entry */}
+          {verifyMethod === 'screenshot' && !ocrProcessing && ocrResult && !extractedRef && (
+            <div style={{
+              marginTop: '12px', padding: '16px',
+              background: 'var(--input-bg, rgba(255,255,255,0.03))',
+              borderRadius: '12px', border: '1px solid var(--panel-border, rgba(255,255,255,0.15))',
+            }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text, #fff)' }}>
+                Enter Reference Manually
+              </label>
+              <input
+                type="text"
+                value={transactionRef}
+                onChange={(e) => { setTransactionRef(e.target.value); setVerifyError(''); }}
+                placeholder="e.g. TF8F3K2Q"
+                style={{
+                  width: '100%', padding: '14px 16px',
+                  background: 'var(--input-bg, rgba(255,255,255,0.05))',
+                  border: '1px solid var(--panel-border, rgba(255,255,255,0.15))',
+                  borderRadius: '12px', color: 'var(--text, #fff)',
+                  fontSize: '16px', outline: 'none', boxSizing: 'border-box',
+                  fontFamily: 'var(--font-mono, monospace)',
+                }}
+              />
+            </div>
+          )}
+
+          {/* Error Display */}
           {verifyError && (
             <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '12px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px' }}>
               {verifyError}
             </div>
           )}
+          {ocrError && verifyMethod === 'screenshot' && (
+            <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#fbbf24', padding: '12px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px' }}>
+              {ocrError}
+            </div>
+          )}
 
-          <button onClick={verifyPayment}
-            disabled={verifying || !transactionRef.trim()}
+          {/* Submit Button */}
+          <button
+            onClick={verifyPayment}
+            disabled={verifying || uploading || ocrProcessing ||
+              (verifyMethod === 'screenshot' && !extractedRef && !screenshot) ||
+              (verifyMethod === 'manual' && !transactionRef.trim()) ||
+              (!verifyMethod)}
             style={{
               width: '100%',
-              background: verifying ? 'var(--text-dimmed, #ffffff30)' : `linear-gradient(135deg, ${accent}, #06b6d4)`,
+              background: (verifying || uploading || ocrProcessing)
+                ? 'var(--text-dimmed, #ffffff30)'
+                : `linear-gradient(135deg, ${accent}, #06b6d4)`,
               color: 'white', border: 'none', padding: '16px', borderRadius: '14px',
               fontWeight: 700, fontSize: '16px',
-              cursor: verifying ? 'not-allowed' : 'pointer',
+              cursor: (verifying || uploading || ocrProcessing) ? 'not-allowed' : 'pointer',
               marginBottom: '12px',
-            }}>
-            {verifying ? 'Verifying Payment...' : 'Verify & Activate Ticket'}
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+            }}
+          >
+            {verifying || uploading ? (
+              <>
+                <div style={{
+                  width: '18px', height: '18px', borderRadius: '50%',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: 'white',
+                  animation: 'spin 1s linear infinite',
+                }} />
+                Verifying Payment...
+              </>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Verify & Activate Ticket
+              </>
+            )}
           </button>
+
           <button onClick={() => setStep('enter_phone')}
             style={{ width: '100%', background: 'transparent', color: 'var(--text-muted, #ffffff60)', border: '1px solid var(--panel-border, rgba(255,255,255,0.2))', padding: '14px', borderRadius: '14px', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>
             Back
@@ -388,8 +828,24 @@ export default function EcoCashPayment({
           </div>
           <h4 style={{ fontSize: '20px', marginBottom: '10px', fontWeight: 700 }}>Payment Verified!</h4>
           <p style={{ color: 'var(--text-muted, #ffffff60)', fontSize: '14px', lineHeight: 1.6 }}>
-            Your payment has been confirmed. Your ticket is now active.
+            Your payment has been confirmed. Your ticket is now active and has been sent to your email and WhatsApp.
           </p>
+          {verifyMethod === 'screenshot' && screenshot && (
+            <div style={{
+              marginTop: '16px', padding: '12px 16px',
+              background: 'rgba(16,185,129,0.1)',
+              borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px',
+              justifyContent: 'center',
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <span style={{ color: accent, fontSize: '13px', fontWeight: 600 }}>
+                Screenshot saved as proof of payment
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -401,6 +857,13 @@ export default function EcoCashPayment({
           </p>
         </div>
       )}
+
+      {/* CSS for spinner animation */}
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
