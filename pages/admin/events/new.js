@@ -66,7 +66,7 @@ export default function NewEvent() {
     bank_name: '',
     bank_account_name: '',
     bank_account_number: '',
-    status: 'draft',
+    status: 'published',
   });
   const [ticketTypes, setTicketTypes] = useState([
     { name: 'General Admission', price: '', quantity_available: '', color: '#e94560', max_per_person: '' },
@@ -122,7 +122,7 @@ export default function NewEvent() {
           bank_name: ev.bank_name || '',
           bank_account_name: ev.bank_account_name || '',
           bank_account_number: ev.bank_account_number || '',
-          status: ev.status || 'draft',
+          status: ev.status || 'published',
         }));
         const types = (ev.ticket_types || []).map(tt => ({
           id: tt.id,
