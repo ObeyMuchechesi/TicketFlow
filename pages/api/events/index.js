@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         date, time, venue, description, poster_image,
         theme_color: theme_color || '#e94560',
         capacity: capacity || 0,
-        status: 'draft',
+        status: 'published',
       };
 
       const mediaPayload = {
