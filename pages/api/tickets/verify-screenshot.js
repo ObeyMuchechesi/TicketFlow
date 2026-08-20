@@ -1,12 +1,20 @@
 import { getServiceClient } from '../../../lib/supabase';
 import { sendTicketConfirmation, sendTicketWhatsApp } from '../../../lib/tickets';
+import { verifyPaymentScreenshot, hashScreenshot } from '../../../lib/payment-verification';
 
 /**
  * POST /api/tickets/verify-screenshot
- * Body: { token: string, screenshot: string (base64), extractedRef?: string }
  *
- * Accepts a screenshot of an EcoCash payment confirmation, stores it as proof,
- * and uses AI OCR to extract the transaction reference for automatic verification.
+ * AI-powered payment verification pipeline:
+ * 1. Extracts OCR text (client-side Tesseract)
+ * 2. Runs 5-layer verification engine:
+ *    - Image forensics (metadata, dimensions, format)
+ *    - Text pattern matching (EcoCash SMS format)
+ *    - Cross-referencing (amount, phone vs purchase)
+ *    - Duplicate detection (SHA-256 hash)
+ *    - Tampering heuristics
+ * 3. Scores confidence (0-100)
+ * 4. Auto-approves, flags for review, or rejects
  */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { token, screenshot, extractedRef, extractedAmount } = req.body;
+    const { token, screenshot, extractedRef, extractedAmount, ocrText } = req.body;
 
     if (!token) {
       return res.status(400).json({ error: 'Ticket token is required' });
@@ -28,7 +36,7 @@ export default async function handler(req, res) {
 
     const supabase = getServiceClient();
 
-    // Find the ticket
+    // ── Find the ticket ──
     const { data: ticket, error: ticketErr } = await supabase
       .from('tickets')
       .select('id, status, event_id, buyer_email, buyer_name, buyer_phone, qr_code_token, ticket_type_id')
@@ -51,16 +59,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'This ticket has been cancelled' });
     }
 
-    // Get the expected payment amount
+    // ── Get purchase details for cross-referencing ──
     const { data: tt } = await supabase
       .from('ticket_types')
       .select('price, name')
       .eq('id', ticket.ticket_type_id)
       .single();
 
-    const expectedAmount = Number(tt?.price || 0);
-
-    // Get the payment record
     const { data: payment } = await supabase
       .from('payments')
       .select('id, amount')
@@ -68,98 +73,231 @@ export default async function handler(req, res) {
       .eq('status', 'pending')
       .single();
 
-    // Use AI-extracted reference or the one provided by the client
-    const cleanRef = String(extractedRef || '').trim().replace(/[^A-Za-z0-9]/g, '');
+    const { data: event } = await supabase
+      .from('events')
+      .select('ecocash_phone, ecocash_type')
+      .eq('id', ticket.event_id)
+      .single();
 
-    if (cleanRef.length < 4 || cleanRef.length > 30) {
-      return res.status(400).json({
-        error: 'Could not extract a valid transaction reference from the screenshot. Please enter it manually.',
+    const expectedAmount = Number(payment?.amount || tt?.price || 0);
+    const expectedPhone = event?.ecocash_phone || '';
+
+    // ── Manual reference path (no screenshot) ──
+    if (!screenshot && extractedRef) {
+      const cleanRef = String(extractedRef).trim().replace(/[^A-Za-z0-9]/g, '');
+      if (cleanRef.length < 4 || cleanRef.length > 30) {
+        return res.status(400).json({
+          error: 'Invalid transaction reference. Please check the EcoCash SMS.',
+        });
+      }
+
+      // Log manual verification
+      try {
+        await supabase.from('payment_verifications').insert({
+          ticket_id: ticket.id,
+          payment_id: payment?.id || null,
+          verification_type: 'manual_ref',
+          extracted_ref: cleanRef,
+          extracted_amount: expectedAmount,
+          confidence: 100,
+          status: 'verified',
+          notes: `Manual reference entry: ${cleanRef}`,
+        });
+      } catch (logErr) {
+        console.warn('Could not log verification:', logErr.message);
+      }
+
+      // Activate ticket
+      let { error: updateErr } = await supabase
+        .from('tickets')
+        .update({ status: 'active', transaction_ref: cleanRef })
+        .eq('id', ticket.id);
+
+      if (updateErr && updateErr.message?.includes('transaction_ref')) {
+        ({ error: updateErr } = await supabase
+          .from('tickets').update({ status: 'active' }).eq('id', ticket.id));
+      }
+
+      await supabase
+        .from('payments')
+        .update({ status: 'completed', transaction_ref: cleanRef })
+        .eq('ticket_id', ticket.id)
+        .eq('status', 'pending');
+
+      // Send ticket
+      sendTicketAsync(supabase, ticket, tt);
+
+      return res.json({
+        success: true,
+        message: 'Payment verified! Your ticket is now active.',
+        ticket: { token: ticket.qr_code_token, status: 'active' },
+        verification: { type: 'manual_ref', reference: cleanRef, confidence: 100, score: 100 },
       });
     }
 
-    // Log the verification attempt (gracefully handle missing table)
+    // ── Screenshot path: Run AI verification engine ──
+    const verification = await verifyPaymentScreenshot({
+      screenshotBase64: screenshot,
+      ocrText: ocrText || '',
+      extractedRef: extractedRef || '',
+      extractedAmount: extractedAmount ? Number(extractedAmount) : null,
+      expectedAmount,
+      expectedPhone,
+      supabase,
+    });
+
+    const cleanRef = String(verification.checks?.text?.extractedRef || extractedRef || '').trim().replace(/[^A-Za-z0-9]/g, '');
+
+    // ── Handle verification result ──
+
+    if (verification.status === 'rejected') {
+      // Log the rejected attempt
+      try {
+        await supabase.from('payment_verifications').insert({
+          ticket_id: ticket.id,
+          payment_id: payment?.id || null,
+          verification_type: 'screenshot_ocr',
+          extracted_ref: cleanRef || null,
+          extracted_amount: extractedAmount ? Number(extractedAmount) : null,
+          screenshot_data: verification.imageHash, // Store hash, not full image
+          confidence: verification.score,
+          status: 'rejected',
+          notes: verification.recommendation + ' | Flags: ' + verification.allFlags.join(', '),
+        });
+      } catch (logErr) {
+        console.warn('Could not log rejected verification:', logErr.message);
+      }
+
+      return res.status(400).json({
+        success: false,
+        error: verification.recommendation,
+        verification: {
+          score: verification.score,
+          status: 'rejected',
+          flags: verification.allFlags,
+          recommendation: verification.recommendation,
+        },
+      });
+    }
+
+    // ── Verify reference is valid ──
+    if (!cleanRef || cleanRef.length < 4 || cleanRef.length > 30) {
+      return res.status(400).json({
+        success: false,
+        error: 'Could not extract a valid transaction reference from the screenshot. Please try a clearer screenshot or enter the reference manually.',
+        verification: {
+          score: verification.score,
+          status: 'needs_manual_ref',
+          flags: verification.allFlags,
+        },
+      });
+    }
+
+    // ── Log the verification attempt ──
     try {
       await supabase.from('payment_verifications').insert({
         ticket_id: ticket.id,
         payment_id: payment?.id || null,
-        verification_type: screenshot ? 'screenshot_ocr' : 'manual_ref',
+        verification_type: 'screenshot_ocr',
         extracted_ref: cleanRef,
         extracted_amount: extractedAmount ? Number(extractedAmount) : null,
-        screenshot_data: screenshot || null,
-        confidence: screenshot ? 85 : 100,
-        status: 'verified',
-        notes: screenshot
-          ? `AI OCR extracted reference: ${cleanRef}. Amount: ${extractedAmount || 'not detected'}`
-          : `Manual reference entry: ${cleanRef}`,
+        extracted_phone: verification.checks?.text?.extractedPhone || null,
+        screenshot_data: verification.imageHash, // Store hash for duplicate detection
+        confidence: verification.score,
+        status: verification.status,
+        notes: verification.recommendation + ' | Scores: ' + JSON.stringify(verification.scores),
       });
     } catch (logErr) {
-      console.warn('Could not log verification (table may not exist):', logErr.message);
+      console.warn('Could not log verification:', logErr.message);
     }
 
-    // Try to store screenshot on tickets/payments (gracefully handle missing columns)
+    // ── Store screenshot on ticket/payment (gracefully) ──
     if (screenshot) {
       try {
-        await supabase.from('tickets').update({ payment_screenshot: screenshot, screenshot_verified: true }).eq('id', ticket.id);
+        await supabase.from('tickets').update({
+          payment_screenshot: screenshot,
+          screenshot_verified: verification.status === 'verified',
+        }).eq('id', ticket.id);
       } catch (ssErr) { console.warn('Could not store screenshot on ticket:', ssErr.message); }
       if (payment) {
         try {
-          await supabase.from('payments').update({ payment_screenshot: screenshot, screenshot_verified: true }).eq('id', payment.id);
+          await supabase.from('payments').update({
+            payment_screenshot: screenshot,
+            screenshot_verified: verification.status === 'verified',
+          }).eq('id', payment.id);
         } catch (psErr) { console.warn('Could not store screenshot on payment:', psErr.message); }
       }
     }
 
-    // Activate the ticket — try with transaction_ref first, fall back without
-    let { error: updateErr } = await supabase
-      .from('tickets')
-      .update({ status: 'active', transaction_ref: cleanRef })
-      .eq('id', ticket.id);
-
-    if (updateErr && updateErr.message?.includes('transaction_ref')) {
-      ({ error: updateErr } = await supabase
+    // ── Auto-approve or flag for review ──
+    if (verification.status === 'verified') {
+      // Auto-activate the ticket
+      let { error: updateErr } = await supabase
         .from('tickets')
-        .update({ status: 'active' })
-        .eq('id', ticket.id));
-    }
+        .update({ status: 'active', transaction_ref: cleanRef })
+        .eq('id', ticket.id);
 
-    if (updateErr && updateErr.message?.includes('status')) {
-      console.warn('Ticket may already be active:', updateErr.message);
-    }
-
-    if (updateErr && !updateErr.message?.includes('status')) {
-      console.error('Ticket activation error:', updateErr);
-      return res.status(500).json({ error: 'Failed to activate ticket' });
-    }
-
-    // Update payment record
-    await supabase
-      .from('payments')
-      .update({ status: 'completed', transaction_ref: cleanRef })
-      .eq('ticket_id', ticket.id)
-      .eq('status', 'pending');
-
-    // Send ticket via email + WhatsApp
-    Promise.all([
-      supabase.from('events').select('event_name, date, time, venue').eq('id', ticket.event_id).single(),
-      supabase.from('tickets').select('*').eq('qr_code_token', token).single(),
-    ]).then(async ([evRes, tkRes]) => {
-      if (evRes.data && tkRes.data) {
-        sendTicketConfirmation({ ticket: tkRes.data, event: evRes.data, ticketType: tt });
-        await sendTicketWhatsApp({ ticket: tkRes.data, event: evRes.data, ticketType: tt });
+      if (updateErr && updateErr.message?.includes('transaction_ref')) {
+        ({ error: updateErr } = await supabase
+          .from('tickets').update({ status: 'active' }).eq('id', ticket.id));
       }
-    }).catch(err => console.error('Post-verification delivery failed:', err));
 
+      await supabase
+        .from('payments')
+        .update({ status: 'completed', transaction_ref: cleanRef })
+        .eq('ticket_id', ticket.id)
+        .eq('status', 'pending');
+
+      // Send ticket via email + WhatsApp
+      sendTicketAsync(supabase, ticket, tt);
+
+      return res.json({
+        success: true,
+        message: 'Payment verified automatically! Your ticket is now active.',
+        ticket: { token: ticket.qr_code_token, status: 'active' },
+        verification: {
+          type: 'screenshot_ocr',
+          reference: cleanRef,
+          score: verification.score,
+          status: 'verified',
+          confidence: verification.score,
+          autoApproved: true,
+        },
+      });
+    }
+
+    // ── Needs review: Ticket stays pending, admin must approve ──
     return res.json({
       success: true,
-      message: 'Payment verified successfully! Your ticket is now active.',
-      ticket: { token: ticket.qr_code_token, status: 'active' },
+      message: 'Screenshot received. Your payment is being reviewed. You will receive your ticket once verified.',
+      ticket: { token: ticket.qr_code_token, status: 'pending' },
       verification: {
-        type: screenshot ? 'screenshot_ocr' : 'manual_ref',
+        type: 'screenshot_ocr',
         reference: cleanRef,
-        confidence: screenshot ? 85 : 100,
+        score: verification.score,
+        status: 'needs_review',
+        recommendation: verification.recommendation,
+        flags: verification.allFlags,
       },
     });
+
   } catch (err) {
     console.error('Screenshot verification error:', err);
     return res.status(500).json({ error: 'Verification failed. Please try again.' });
   }
+}
+
+/**
+ * Fire-and-forget ticket delivery via email + WhatsApp.
+ */
+function sendTicketAsync(supabase, ticket, tt) {
+  Promise.all([
+    supabase.from('events').select('event_name, date, time, venue').eq('id', ticket.event_id).single(),
+    supabase.from('tickets').select('*').eq('qr_code_token', ticket.qr_code_token).single(),
+  ]).then(async ([evRes, tkRes]) => {
+    if (evRes.data && tkRes.data) {
+      sendTicketConfirmation({ ticket: tkRes.data, event: evRes.data, ticketType: tt });
+      await sendTicketWhatsApp({ ticket: tkRes.data, event: evRes.data, ticketType: tt });
+    }
+  }).catch(err => console.error('Post-verification delivery failed:', err));
 }
