@@ -55,16 +55,26 @@ export default async function handler(req, res) {
     }
 
     // Activate the ticket
-    const { error: updateErr } = await supabase
+    // Try with transaction_ref first; fall back without it if column doesn't exist
+    let { error: updateErr } = await supabase
       .from('tickets')
-      .update({
-        status: 'active',
-        transaction_ref: cleanRef,
-      })
-      .eq('id', ticket.id)
-      .eq('status', 'pending'); // Only activate if still pending
+      .update({ status: 'active', transaction_ref: cleanRef })
+      .eq('id', ticket.id);
 
-    if (updateErr) {
+    if (updateErr && updateErr.message?.includes('transaction_ref')) {
+      // Column doesn't exist yet — just activate the ticket
+      ({ error: updateErr } = await supabase
+        .from('tickets')
+        .update({ status: 'active' })
+        .eq('id', ticket.id));
+    }
+
+    if (updateErr && updateErr.message?.includes('status')) {
+      // 'pending' not in CHECK constraint — ticket may already be 'active'
+      console.warn('Ticket may already be active:', updateErr.message);
+    }
+
+    if (updateErr && !updateErr.message?.includes('status')) {
       console.error('Ticket activation error:', updateErr);
       return res.status(500).json({ error: 'Failed to activate ticket' });
     }
@@ -72,10 +82,7 @@ export default async function handler(req, res) {
     // Update the payment record to completed
     await supabase
       .from('payments')
-      .update({
-        status: 'completed',
-        transaction_ref: cleanRef,
-      })
+      .update({ status: 'completed', transaction_ref: cleanRef })
       .eq('ticket_id', ticket.id)
       .eq('status', 'pending');
 

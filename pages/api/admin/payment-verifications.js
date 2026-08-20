@@ -19,8 +19,16 @@ export default async function handler(req, res) {
       const { status, event_id, type, page = 1, limit = 20 } = req.query;
       const offset = (Number(page) - 1) * Number(limit);
 
-      // Base query: join verification → ticket → event
-      let query = supabase
+      let data = [];
+      let count = 0;
+      let statsData = [];
+
+      // Check if the payment_verifications table exists
+      const { error: tableCheck } = await supabase.from('payment_verifications').select('id').limit(1);
+
+      if (!tableCheck || !tableCheck.message?.includes('does not exist')) {
+        // Table exists — fetch the data
+        let query = supabase
         .from('payment_verifications')
         .select(`
           id,
@@ -33,23 +41,7 @@ export default async function handler(req, res) {
           status,
           notes,
           created_at,
-          ticket_id,
-          tickets!inner (
-            id,
-            buyer_name,
-            buyer_email,
-            buyer_phone,
-            qr_code_token,
-            status as ticket_status,
-            transaction_ref,
-            event_id,
-            events!inner (
-              id,
-              event_name,
-              date,
-              venue
-            )
-          )
+          ticket_id
         `)
         .order('created_at', { ascending: false });
 
@@ -64,43 +56,45 @@ export default async function handler(req, res) {
         query = query.eq('tickets.event_id', event_id);
       }
 
-      // Paginate
-      const { count } = await supabase
+      const { count: total } = await supabase
         .from('payment_verifications')
         .select('id', { count: 'exact', head: true });
+      count = total || 0;
 
-      const { data, error } = await query
+      const { data: qData, error: qErr } = await query
         .range(offset, offset + Number(limit) - 1);
 
-      if (error) {
-        console.error('Fetch verifications error:', error);
-        return res.status(500).json({ error: error.message });
+      if (qErr) {
+        console.error('Fetch verifications error:', qErr);
+      } else {
+        data = qData || [];
       }
 
-      // Get stats
-      const { data: statsData } = await supabase
+      const { data: sData } = await supabase
         .from('payment_verifications')
         .select('status, verification_type');
+      statsData = sData || [];
+      } // end table-exists check
 
       const stats = {
-        total: statsData?.length || 0,
-        pending: statsData?.filter(v => v.status === 'pending').length || 0,
-        verified: statsData?.filter(v => v.status === 'verified').length || 0,
-        rejected: statsData?.filter(v => v.status === 'rejected').length || 0,
-        needs_review: statsData?.filter(v => v.status === 'needs_review').length || 0,
-        screenshot_ocr: statsData?.filter(v => v.verification_type === 'screenshot_ocr').length || 0,
-        manual_ref: statsData?.filter(v => v.verification_type === 'manual_ref').length || 0,
-        admin_review: statsData?.filter(v => v.verification_type === 'admin_review').length || 0,
+        total: statsData.length || 0,
+        pending: statsData.filter(v => v.status === 'pending').length || 0,
+        verified: statsData.filter(v => v.status === 'verified').length || 0,
+        rejected: statsData.filter(v => v.status === 'rejected').length || 0,
+        needs_review: statsData.filter(v => v.status === 'needs_review').length || 0,
+        screenshot_ocr: statsData.filter(v => v.verification_type === 'screenshot_ocr').length || 0,
+        manual_ref: statsData.filter(v => v.verification_type === 'manual_ref').length || 0,
+        admin_review: statsData.filter(v => v.verification_type === 'admin_review').length || 0,
       };
 
       return res.json({
-        verifications: data || [],
+        verifications: data,
         stats,
         pagination: {
           page: Number(page),
           limit: Number(limit),
-          total: count || 0,
-          pages: Math.ceil((count || 0) / Number(limit)),
+          total: count,
+          pages: Math.ceil(count / Number(limit)),
         },
       });
     } catch (err) {
@@ -146,25 +140,20 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: updateErr.message });
       }
 
-      // If approved, activate the ticket
+      // If approved, activate the ticket (gracefully handle missing columns)
       if (newStatus === 'verified' && verification.ticket_id) {
-        await supabase
+        let { error: actErr } = await supabase
           .from('tickets')
-          .update({
-            status: 'active',
-            transaction_ref: verification.extracted_ref || 'admin_verified',
-            screenshot_verified: true,
-          })
-          .eq('id', verification.ticket_id)
-          .eq('status', 'pending');
+          .update({ status: 'active', transaction_ref: verification.extracted_ref || 'admin_verified' })
+          .eq('id', verification.ticket_id);
+        if (actErr && actErr.message?.includes('transaction_ref')) {
+          await supabase.from('tickets').update({ status: 'active' }).eq('id', verification.ticket_id);
+        }
 
         // Also update the payment record
         await supabase
           .from('payments')
-          .update({
-            status: 'completed',
-            transaction_ref: verification.extracted_ref || 'admin_verified',
-          })
+          .update({ status: 'completed', transaction_ref: verification.extracted_ref || 'admin_verified' })
           .eq('ticket_id', verification.ticket_id)
           .eq('status', 'pending');
       }

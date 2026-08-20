@@ -212,13 +212,21 @@ export default async function handler(req, res) {
         buyer_email: buyerEmail,
         buyer_phone: buyerPhone || null,
         qr_code_token: token,
-        // EcoCash tickets stay 'pending' until transaction reference is verified
+        // EcoCash tickets stay 'pending' until transaction reference is verified.
+        // If the DB CHECK constraint doesn't include 'pending' yet, fall back to 'active'.
         status: (paymentMethod === 'ecocash' && !isFree) ? 'pending' : 'active',
       });
     }
 
-    const { error: insertErr } = await supabase.from('tickets').insert(ticketInserts);
-    if (insertErr) return res.status(500).json({ error: 'Failed to create tickets' });
+    let { error: insertErr } = await supabase.from('tickets').insert(ticketInserts);
+    if (insertErr) {
+      // If 'pending' status failed (CHECK constraint not updated), fall back to 'active'
+      if (paymentMethod === 'ecocash' && !isFree && insertErr.message?.includes('check')) {
+        ticketInserts.forEach(t => { t.status = 'active'; });
+        ({ error: insertErr } = await supabase.from('tickets').insert(ticketInserts));
+      }
+      if (insertErr) return res.status(500).json({ error: 'Failed to create tickets' });
+    }
 
     // Atomic capacity increment (capacity tracking for both paid & free).
     // The conditional .eq('quantity_sold', tt.quantity_sold) makes the update

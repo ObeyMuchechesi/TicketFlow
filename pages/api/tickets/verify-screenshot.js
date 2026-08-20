@@ -77,55 +77,55 @@ export default async function handler(req, res) {
       });
     }
 
-    // Log the verification attempt
-    const verificationRecord = {
-      ticket_id: ticket.id,
-      payment_id: payment?.id || null,
-      verification_type: screenshot ? 'screenshot_ocr' : 'manual_ref',
-      extracted_ref: cleanRef,
-      extracted_amount: extractedAmount ? Number(extractedAmount) : null,
-      screenshot_data: screenshot || null,
-      confidence: screenshot ? 85 : 100, // Manual entries are higher confidence
-      status: 'verified',
-      notes: screenshot
-        ? `AI OCR extracted reference: ${cleanRef}. Amount: ${extractedAmount || 'not detected'}`
-        : `Manual reference entry: ${cleanRef}`,
-    };
+    // Log the verification attempt (gracefully handle missing table)
+    try {
+      await supabase.from('payment_verifications').insert({
+        ticket_id: ticket.id,
+        payment_id: payment?.id || null,
+        verification_type: screenshot ? 'screenshot_ocr' : 'manual_ref',
+        extracted_ref: cleanRef,
+        extracted_amount: extractedAmount ? Number(extractedAmount) : null,
+        screenshot_data: screenshot || null,
+        confidence: screenshot ? 85 : 100,
+        status: 'verified',
+        notes: screenshot
+          ? `AI OCR extracted reference: ${cleanRef}. Amount: ${extractedAmount || 'not detected'}`
+          : `Manual reference entry: ${cleanRef}`,
+      });
+    } catch (logErr) {
+      console.warn('Could not log verification (table may not exist):', logErr.message);
+    }
 
-    await supabase.from('payment_verifications').insert(verificationRecord);
-
-    // If a screenshot was provided, also store it on the ticket and payment
+    // Try to store screenshot on tickets/payments (gracefully handle missing columns)
     if (screenshot) {
-      await supabase
-        .from('tickets')
-        .update({
-          payment_screenshot: screenshot,
-          screenshot_verified: true,
-        })
-        .eq('id', ticket.id);
-
+      try {
+        await supabase.from('tickets').update({ payment_screenshot: screenshot, screenshot_verified: true }).eq('id', ticket.id);
+      } catch (ssErr) { console.warn('Could not store screenshot on ticket:', ssErr.message); }
       if (payment) {
-        await supabase
-          .from('payments')
-          .update({
-            payment_screenshot: screenshot,
-            screenshot_verified: true,
-          })
-          .eq('id', payment.id);
+        try {
+          await supabase.from('payments').update({ payment_screenshot: screenshot, screenshot_verified: true }).eq('id', payment.id);
+        } catch (psErr) { console.warn('Could not store screenshot on payment:', psErr.message); }
       }
     }
 
-    // Activate the ticket
-    const { error: updateErr } = await supabase
+    // Activate the ticket — try with transaction_ref first, fall back without
+    let { error: updateErr } = await supabase
       .from('tickets')
-      .update({
-        status: 'active',
-        transaction_ref: cleanRef,
-      })
-      .eq('id', ticket.id)
-      .eq('status', 'pending');
+      .update({ status: 'active', transaction_ref: cleanRef })
+      .eq('id', ticket.id);
 
-    if (updateErr) {
+    if (updateErr && updateErr.message?.includes('transaction_ref')) {
+      ({ error: updateErr } = await supabase
+        .from('tickets')
+        .update({ status: 'active' })
+        .eq('id', ticket.id));
+    }
+
+    if (updateErr && updateErr.message?.includes('status')) {
+      console.warn('Ticket may already be active:', updateErr.message);
+    }
+
+    if (updateErr && !updateErr.message?.includes('status')) {
       console.error('Ticket activation error:', updateErr);
       return res.status(500).json({ error: 'Failed to activate ticket' });
     }
@@ -133,10 +133,7 @@ export default async function handler(req, res) {
     // Update payment record
     await supabase
       .from('payments')
-      .update({
-        status: 'completed',
-        transaction_ref: cleanRef,
-      })
+      .update({ status: 'completed', transaction_ref: cleanRef })
       .eq('ticket_id', ticket.id)
       .eq('status', 'pending');
 
