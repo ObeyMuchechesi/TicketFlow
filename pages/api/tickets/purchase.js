@@ -40,7 +40,8 @@ export default async function handler(req, res) {
     // flow from price means a client can never mint paid tickets for free by
     // sending `paymentMethod: 'free'` — reject anything that isn't a valid flow.
     const isBankTransfer = paymentMethod === 'bank_transfer';
-    if (!isFree && paymentMethod !== 'stripe' && paymentMethod !== 'ecocash' && !isBankTransfer) {
+    const isPaynow = paymentMethod === 'paynow';
+    if (!isFree && paymentMethod !== 'stripe' && paymentMethod !== 'ecocash' && !isBankTransfer && !isPaynow) {
       return res.status(400).json({ error: 'Invalid payment method for this ticket' });
     }
 
@@ -212,16 +213,16 @@ export default async function handler(req, res) {
         buyer_email: buyerEmail,
         buyer_phone: buyerPhone || null,
         qr_code_token: token,
-        // EcoCash tickets stay 'pending' until transaction reference is verified.
+        // EcoCash & Paynow tickets stay 'pending' until payment is verified.
         // If the DB CHECK constraint doesn't include 'pending' yet, fall back to 'active'.
-        status: (paymentMethod === 'ecocash' && !isFree) ? 'pending' : 'active',
+        status: ((paymentMethod === 'ecocash' || paymentMethod === 'paynow') && !isFree) ? 'pending' : 'active',
       });
     }
 
     let { error: insertErr } = await supabase.from('tickets').insert(ticketInserts);
     if (insertErr) {
       // If 'pending' status failed (CHECK constraint not updated), fall back to 'active'
-      if (paymentMethod === 'ecocash' && !isFree && insertErr.message?.includes('check')) {
+      if ((paymentMethod === 'ecocash' || paymentMethod === 'paynow') && !isFree && insertErr.message?.includes('check')) {
         ticketInserts.forEach(t => { t.status = 'active'; });
         ({ error: insertErr } = await supabase.from('tickets').insert(ticketInserts));
       }
@@ -260,16 +261,16 @@ export default async function handler(req, res) {
           amount: total,
           currency: 'USD',
           payment_method: paymentMethodForRecord,
-          status: paymentMethod === 'ecocash' ? 'pending' : 'completed',
+          status: (paymentMethod === 'ecocash' || paymentMethod === 'paynow') ? 'pending' : 'completed',
           transaction_ref: ecocash?.reference || null,
           paid_at: new Date().toISOString(),
         });
       }
     }
 
-    // Skip delivery for EcoCash — tickets are only sent after payment verification.
+    // Skip delivery for EcoCash & Paynow — tickets are only sent after payment verification.
     // For free tickets, Stripe, and bank transfers, send immediately.
-    const shouldDeliver = paymentMethod !== 'ecocash' || isFree;
+    const shouldDeliver = paymentMethod !== 'ecocash' && paymentMethod !== 'paynow' || isFree;
     const delivery = shouldDeliver ? Promise.all([
       supabase.from('events').select('event_name, date, time, venue').eq('id', eventId).single(),
       supabase.from('tickets').select('*').eq('qr_code_token', tokens[0]).single(),
